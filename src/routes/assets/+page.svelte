@@ -53,8 +53,9 @@
   }
 
   function fmtDate(iso: string) {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric', month: 'short', day: 'numeric'
+    return new Date(iso).toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     });
   }
 
@@ -149,7 +150,7 @@
 <div class="space-y-5">
   <!-- Header -->
   <div class="flex items-center justify-between">
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 py-2">
       <div class="w-1 h-5 bg-accent opacity-70"></div>
       <h1 style="font-family: 'Orbitron', sans-serif;" class="text-accent text-sm font-bold tracking-widest uppercase">
         Inventory
@@ -165,7 +166,7 @@
 
   <!-- Table -->
   {#if $assets.length === 0}
-    <div class="rsi-panel border border-border bg-surface mt-8 py-16 text-center">
+    <div class="rsi-panel border border-border bg-surface py-16 text-center">
       <p style="font-family: 'Orbitron', sans-serif;" class="text-muted text-xs uppercase tracking-widest">
         No assets on record
       </p>
@@ -179,9 +180,10 @@
             <tr>
               <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Item</th>
               <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Amount</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Buy Price</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Location</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Added</th>
+              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Price / Unit</th>
+              <th class="hidden sm:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Total Cost</th>
+              <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Location</th>
+              <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Added</th>
               <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted">Actions</th>
             </tr>
           </thead>
@@ -195,8 +197,11 @@
                 <td class="px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
                   {asset.buyPrice > 0 ? uec(asset.buyPrice) : '—'}
                 </td>
-                <td class="px-4 py-3 text-muted text-xs">{asset.location || '—'}</td>
-                <td class="px-4 py-3 text-muted text-xs" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">
+                <td class="hidden sm:table-cell px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
+                  {asset.buyPrice > 0 ? uec(asset.amount * asset.buyPrice) : '—'}
+                </td>
+                <td class="hidden md:table-cell px-4 py-3 text-muted text-xs">{asset.location || '—'}</td>
+                <td class="hidden md:table-cell px-4 py-3 text-muted text-xs" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">
                   {fmtDate(asset.createdAt)}
                 </td>
                 <td class="px-4 py-3">

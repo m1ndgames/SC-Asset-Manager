@@ -11,6 +11,8 @@
   let itemsError = $state(false);
   let importError = $state('');
 
+  let totalYield = $derived($trades.reduce((sum, t) => sum + t.amountSold * t.sellPrice, 0));
+
   onMount(async () => {
     const [itemsRes, locationsRes] = await Promise.allSettled([
       fetch(`${base}/items.json`),
@@ -84,17 +86,17 @@
   <nav class="bg-surface border-b border-border sticky top-0 z-40">
     <!-- Decorative top stripe -->
     <div class="h-px bg-gradient-to-r from-surface via-accent-dim to-surface opacity-40"></div>
-    <div class="max-w-6xl mx-auto px-6 h-14 flex items-center gap-8">
+    <div class="max-w-6xl mx-auto px-3 sm:px-6 h-14 flex items-center gap-3 sm:gap-6">
 
       <!-- Brand -->
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
         <div class="w-1 h-6 bg-accent opacity-80"></div>
-        <span style="font-family: 'Orbitron', sans-serif;" class="text-accent text-sm font-bold tracking-widest uppercase">
-          SC Asset Manager
+        <span style="font-family: 'Orbitron', sans-serif;" class="text-accent text-xs sm:text-sm font-bold tracking-widest uppercase hidden xs:block sm:block">
+          SC<span class="hidden sm:inline"> Asset Manager</span>
         </span>
       </div>
 
-      <div class="w-px h-5 bg-border"></div>
+      <div class="w-px h-5 bg-border hidden sm:block"></div>
 
       <!-- Nav links -->
       <a
@@ -122,12 +124,22 @@
         How To
       </a>
 
-      <div class="ml-auto flex items-center gap-3">
+      <div class="ml-auto flex items-center gap-2">
+        {#if $trades.length > 0}
+          <div class="hidden sm:flex items-center gap-2 border border-border bg-surface px-3 py-1.5">
+            <span class="text-xs uppercase tracking-widest text-muted font-semibold">Yield</span>
+            <div class="w-px h-3 bg-border"></div>
+            <span style="font-family: 'Orbitron', sans-serif;" class="text-accent font-bold text-xs">
+              {totalYield.toLocaleString()} aUEC
+            </span>
+          </div>
+        {/if}
+
         <!-- Import -->
         <label class="cursor-pointer group">
-          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted group-hover:border-accent group-hover:text-accent transition-all duration-200">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-            Import
+          <span class="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted group-hover:border-accent group-hover:text-accent transition-all duration-200">
+            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            <span class="hidden sm:inline">Import</span>
           </span>
           <input type="file" accept=".json,application/json" onchange={handleImport} class="sr-only" />
         </label>
@@ -135,23 +147,11 @@
         <!-- Export -->
         <button
           onclick={exportData}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-accent hover:text-accent transition-all duration-200"
+          class="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-accent hover:text-accent transition-all duration-200"
         >
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          Export
+          <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span class="hidden sm:inline">Export</span>
         </button>
-
-        <div class="w-px h-4 bg-border"></div>
-
-        <span class="text-xs text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">
-          {#if itemsError}
-            <span class="text-yellow-500">NO ITEM DATA</span>
-          {:else if $scItems.length === 0}
-            <span class="opacity-50">LOADING...</span>
-          {:else}
-            <span class="text-accent">{$scItems.length.toLocaleString()}</span> ITEMS
-          {/if}
-        </span>
       </div>
     </div>
   </nav>
@@ -163,7 +163,7 @@
     </div>
   {/if}
 
-  <main class="max-w-6xl mx-auto px-6 py-8">
+  <main class="max-w-6xl mx-auto px-3 sm:px-6 py-5 sm:py-8">
     {@render children()}
   </main>
 

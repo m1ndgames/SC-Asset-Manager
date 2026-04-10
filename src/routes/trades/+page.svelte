@@ -21,8 +21,9 @@
   function uec(n: number) { return n.toLocaleString() + ' aUEC'; }
 
   function fmtDate(iso: string) {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric', month: 'short', day: 'numeric'
+    return new Date(iso).toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     });
   }
 
@@ -55,32 +56,22 @@
   }
 
   let sorted = $derived([...$trades].sort((a, b) => b.soldAt.localeCompare(a.soldAt)));
-  let totalProceeds = $derived($trades.reduce((sum, t) => sum + t.amountSold * t.sellPrice, 0));
 </script>
 
 <div class="space-y-5">
   <!-- Header -->
   <div class="flex items-center justify-between">
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 py-2">
       <div class="w-1 h-5 bg-accent opacity-70"></div>
       <h1 style="font-family: 'Orbitron', sans-serif;" class="text-accent text-sm font-bold tracking-widest uppercase">
         Trade Log
       </h1>
     </div>
-    {#if $trades.length > 0}
-      <div class="flex items-center gap-2 border border-border bg-surface px-4 py-1.5">
-        <span class="text-xs uppercase tracking-widest text-muted font-semibold">Total Yield</span>
-        <div class="w-px h-3 bg-border"></div>
-        <span style="font-family: 'Orbitron', sans-serif;" class="text-accent font-bold text-xs">
-          {uec(totalProceeds)}
-        </span>
-      </div>
-    {/if}
   </div>
 
   <!-- Table -->
   {#if $trades.length === 0}
-    <div class="rsi-panel border border-border bg-surface mt-8 py-16 text-center">
+    <div class="rsi-panel border border-border bg-surface py-16 text-center">
       <p style="font-family: 'Orbitron', sans-serif;" class="text-muted text-xs uppercase tracking-widest">
         No trades on record
       </p>
@@ -94,10 +85,10 @@
             <tr>
               <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Item</th>
               <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Qty</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Sell Price</th>
+              <th class="hidden sm:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Sell Price</th>
               <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Yield</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Location</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Date</th>
+              <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Location</th>
+              <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Date</th>
               <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted">Actions</th>
             </tr>
           </thead>
@@ -108,14 +99,14 @@
                 <td class="px-4 py-3 text-text font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
                   {trade.amountSold.toLocaleString()}
                 </td>
-                <td class="px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
+                <td class="hidden sm:table-cell px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
                   {trade.sellPrice > 0 ? uec(trade.sellPrice) : '—'}
                 </td>
                 <td class="px-4 py-3 text-accent font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
                   {trade.sellPrice > 0 ? uec(trade.amountSold * trade.sellPrice) : '—'}
                 </td>
-                <td class="px-4 py-3 text-muted text-xs">{trade.sellLocation || '—'}</td>
-                <td class="px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">
+                <td class="hidden md:table-cell px-4 py-3 text-muted text-xs">{trade.sellLocation || '—'}</td>
+                <td class="hidden md:table-cell px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">
                   {fmtDate(trade.soldAt)}
                 </td>
                 <td class="px-4 py-3">

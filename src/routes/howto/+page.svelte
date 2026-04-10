@@ -1,4 +1,4 @@
-<div class="max-w-3xl space-y-10">
+<div class="space-y-10">
 
   <!-- Page heading -->
   <div class="space-y-3">
