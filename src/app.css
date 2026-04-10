@@ -1,8 +1,84 @@
 @import "tailwindcss";
 
 @theme {
-  --color-surface: #111827;
-  --color-surface-2: #1f2937;
-  --color-surface-3: #374151;
-  --color-accent: #3b82f6;
+  --color-bg:           #000b11;
+  --color-surface:      #001f33;
+  --color-surface-2:    #002d4a;
+  --color-border:       #0a3a5c;
+  --color-border-bright:#1a6a9a;
+  --color-accent:       #42c8f4;
+  --color-accent-dim:   #1a8ab5;
+  --color-accent-glow:  rgba(66, 200, 244, 0.12);
+  --color-text:         #c8dde8;
+  --color-muted:        #4a7a9b;
+  --color-danger:       #7f1d1d;
+  --color-danger-text:  #f87171;
+
+  --font-display: 'Orbitron', sans-serif;
+  --font-body:    'Rajdhani', sans-serif;
+}
+
+html, body {
+  background-color: #000b11;
+  color: #c8dde8;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+}
+
+/* Noise overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XiDAAAAUVBMVEWFhYWDg4N3d3dtbW17e3t1dXWBgYGHh4t5eXlzc3OLi4ubm5uVlZWPj4+NjY19fX2JiYl/f39ra2uRkZGZmZlpaWmXl5dvb29xcXGTk5NnZ2c8TV1mAAAAG3RSTlNAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEAvEOwtAAAAb0lEQVR42uzTSQ6AIAxF0UKZx1Lm+e5/p9biQBMSE5/J6SIBAAAAAAAAAAAAAAAAAAAAAAoAJRAA3CkAoBwA3KoAoBwA3KoAoFYAuFUAqBUAuFUAqBUAqhUA7loA4F4A4F4A4F4A4F8A4F8A4F8A4AAA//8AuFgzAAAAHnRSTlMAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEA/iA4iAAAAQElEQVR42uzMMQEAAAjDMObfWQ6kBHpDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4A0AAP//ADUyAAAADklEQVR42mNk+A8AAQQBAScDLr0AAAAASUVORK5CYII=");
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* RSI-style corner bracket decoration */
+.rsi-panel {
+  position: relative;
+}
+.rsi-panel::before,
+.rsi-panel::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: #42c8f4;
+  border-style: solid;
+  opacity: 0.7;
+}
+.rsi-panel::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+.rsi-panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+/* Scan line effect for table header */
+.rsi-scanline {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.08) 3px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+}
+
+/* Accent glow on focus */
+input:focus {
+  box-shadow: 0 0 0 1px #42c8f4, 0 0 12px rgba(66, 200, 244, 0.15);
+}
+
+/* Number inputs — hide spinners */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  opacity: 0.3;
 }
