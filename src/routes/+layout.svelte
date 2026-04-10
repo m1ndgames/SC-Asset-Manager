@@ -12,6 +12,7 @@
   let importError = $state('');
 
   let totalYield = $derived($trades.reduce((sum, t) => sum + t.amountSold * t.sellPrice, 0));
+  let portfolioValue = $derived($assets.reduce((sum, a) => sum + a.amount * a.buyPrice, 0));
 
   onMount(async () => {
     const [itemsRes, locationsRes] = await Promise.allSettled([
@@ -125,6 +126,15 @@
       </a>
 
       <div class="ml-auto flex items-center gap-2">
+        {#if $assets.length > 0 && portfolioValue > 0}
+          <div class="hidden sm:flex items-center gap-2 border border-border bg-surface px-3 py-1.5">
+            <span class="text-xs uppercase tracking-widest text-muted font-semibold">Portfolio</span>
+            <div class="w-px h-3 bg-border"></div>
+            <span style="font-family: 'Orbitron', sans-serif;" class="text-accent font-bold text-xs">
+              {portfolioValue.toLocaleString()} aUEC
+            </span>
+          </div>
+        {/if}
         {#if $trades.length > 0}
           <div class="hidden sm:flex items-center gap-2 border border-border bg-surface px-3 py-1.5">
             <span class="text-xs uppercase tracking-widest text-muted font-semibold">Yield</span>

@@ -12,7 +12,8 @@ export interface Trade {
   assetId: string;
   item: string;
   amountSold: number;
-  sellPrice: number; // aUEC per unit
+  buyPrice?: number;  // aUEC per unit at time of sale (absent on legacy records)
+  sellPrice: number;  // aUEC per unit
   sellLocation: string;
   soldAt: string;
 }

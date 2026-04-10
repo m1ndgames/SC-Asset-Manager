@@ -32,6 +32,11 @@
   let showLocDropdown = $state(false);
   let showSellLocDropdown = $state(false);
 
+  // ── Table state ───────────────────────────────────────────────────────────────
+  let tableFilter = $state('');
+  let sortCol = $state('createdAt');
+  let sortDir = $state<'asc' | 'desc'>('desc');
+
   let filteredItems = $derived(
     fSearch.length >= 2
       ? $scItems.filter((n) => n.toLowerCase().includes(fSearch.toLowerCase())).slice(0, 25)
@@ -48,9 +53,31 @@
       : []
   );
 
-  function uec(n: number) {
-    return n.toLocaleString() + ' aUEC';
+  let displayAssets = $derived(
+    [...$assets]
+      .filter(a => !tableFilter || a.item.toLowerCase().includes(tableFilter.toLowerCase()))
+      .sort((a, b) => {
+        let av: string | number, bv: string | number;
+        if (sortCol === 'item')          { av = a.item;               bv = b.item; }
+        else if (sortCol === 'amount')   { av = a.amount;             bv = b.amount; }
+        else if (sortCol === 'buyPrice') { av = a.buyPrice;           bv = b.buyPrice; }
+        else if (sortCol === 'total')    { av = a.amount * a.buyPrice; bv = b.amount * b.buyPrice; }
+        else if (sortCol === 'location') { av = a.location;           bv = b.location; }
+        else                             { av = a.createdAt;          bv = b.createdAt; }
+        if (av < bv) return sortDir === 'asc' ? -1 : 1;
+        if (av > bv) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      })
+  );
+
+  function toggleSort(col: string) {
+    if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortCol = col; sortDir = 'asc'; }
   }
+
+  function si(col: string) { return sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''; }
+
+  function uec(n: number) { return n.toLocaleString() + ' aUEC'; }
 
   function fmtDate(iso: string) {
     return new Date(iso).toLocaleString(undefined, {
@@ -68,6 +95,25 @@
   function saveAdd() {
     if (!fItem.trim()) { formError = 'Item name is required.'; return; }
     if (!fAmount || fAmount <= 0) { formError = 'Amount must be greater than 0.'; return; }
+
+    const existing = $assets.find(a =>
+      a.item.toLowerCase() === fItem.trim().toLowerCase() &&
+      a.location.toLowerCase() === fLocation.trim().toLowerCase()
+    );
+
+    if (existing) {
+      const loc = existing.location || 'no location';
+      if (confirm(`"${existing.item}" at "${loc}" already exists (${existing.amount.toLocaleString()} units). Merge into existing record?`)) {
+        assets.update(list => list.map(a =>
+          a.id === existing.id
+            ? { ...a, amount: a.amount + Number(fAmount), buyPrice: Number(fBuyPrice) || a.buyPrice }
+            : a
+        ));
+        showAddModal = false;
+        return;
+      }
+    }
+
     assets.update((list) => [...list, {
       id: crypto.randomUUID(),
       item: fItem.trim(),
@@ -126,6 +172,7 @@
       assetId: sellTarget!.id,
       item: sellTarget!.item,
       amountSold: qty,
+      buyPrice: sellTarget!.buyPrice,
       sellPrice: Number(sSellPrice) || 0,
       sellLocation: sSellLocation.trim(),
       soldAt: new Date().toISOString()
@@ -164,6 +211,16 @@
     </button>
   </div>
 
+  <!-- Filter bar -->
+  {#if $assets.length > 0}
+    <input
+      type="text"
+      placeholder="Filter by item name…"
+      bind:value={tableFilter}
+      class="w-full bg-bg border border-border px-3 py-2 text-sm text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+    />
+  {/if}
+
   <!-- Table -->
   {#if $assets.length === 0}
     <div class="rsi-panel border border-border bg-surface py-16 text-center">
@@ -178,17 +235,17 @@
         <table class="w-full text-sm">
           <thead class="rsi-scanline bg-surface border-b border-border">
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Item</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Amount</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Price / Unit</th>
-              <th class="hidden sm:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Total Cost</th>
-              <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Location</th>
-              <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Added</th>
+              <th onclick={() => toggleSort('item')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Item{si('item')}</th>
+              <th onclick={() => toggleSort('amount')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Amount{si('amount')}</th>
+              <th onclick={() => toggleSort('buyPrice')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Price / Unit{si('buyPrice')}</th>
+              <th onclick={() => toggleSort('total')} class="hidden sm:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Total Cost{si('total')}</th>
+              <th onclick={() => toggleSort('location')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Location{si('location')}</th>
+              <th onclick={() => toggleSort('createdAt')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Added{si('createdAt')}</th>
               <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
-            {#each $assets as asset (asset.id)}
+            {#each displayAssets as asset (asset.id)}
               <tr class="bg-bg hover:bg-surface transition-colors duration-150 group">
                 <td class="px-4 py-3 font-semibold text-text">{asset.item}</td>
                 <td class="px-4 py-3 text-accent font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 12px;">
@@ -222,6 +279,11 @@
                 </td>
               </tr>
             {/each}
+            {#if displayAssets.length === 0}
+              <tr>
+                <td colspan="7" class="px-4 py-8 text-center text-muted text-xs uppercase tracking-widest">No matching assets</td>
+              </tr>
+            {/if}
           </tbody>
         </table>
       </div>
@@ -395,11 +457,29 @@
         </div>
 
         {#if Number(sSellAmount) > 0 && Number(sSellPrice) > 0}
-          <div class="border border-border-bright bg-accent-glow px-4 py-2.5 flex items-center justify-between">
-            <span class="text-xs uppercase tracking-widest text-muted font-semibold">Expected Yield</span>
-            <span style="font-family: 'Orbitron', sans-serif;" class="text-accent font-bold text-sm">
-              {uec(Number(sSellAmount) * Number(sSellPrice))}
-            </span>
+          {@const qty = Number(sSellAmount)}
+          {@const sell = Number(sSellPrice)}
+          {@const yield_ = qty * sell}
+          {@const cost = sellTarget.buyPrice > 0 ? qty * sellTarget.buyPrice : 0}
+          {@const profit = yield_ - cost}
+          <div class="border border-border-bright bg-accent-glow px-4 py-3 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs uppercase tracking-widest text-muted font-semibold">Expected Yield</span>
+              <span style="font-family: 'Orbitron', sans-serif;" class="text-accent font-bold text-sm">{uec(yield_)}</span>
+            </div>
+            {#if sellTarget.buyPrice > 0}
+              <div class="flex items-center justify-between">
+                <span class="text-xs uppercase tracking-widest text-muted font-semibold">Total Cost</span>
+                <span style="font-family: 'Orbitron', sans-serif;" class="text-muted text-xs">{uec(cost)}</span>
+              </div>
+              <div class="h-px bg-border"></div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs uppercase tracking-widest text-muted font-semibold">Est. Profit</span>
+                <span style="font-family: 'Orbitron', sans-serif;" class="font-bold text-sm {profit > 0 ? 'text-green-400' : profit < 0 ? 'text-red-400' : 'text-muted'}">
+                  {profit >= 0 ? '+' : ''}{uec(profit)}
+                </span>
+              </div>
+            {/if}
           </div>
         {/if}
       </div>

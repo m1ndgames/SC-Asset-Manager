@@ -12,11 +12,44 @@
   let fLocSearch = $state('');
   let showLocDropdown = $state(false);
 
+  // ── Table state ───────────────────────────────────────────────────────────────
+  let tableFilter = $state('');
+  let sortCol = $state('soldAt');
+  let sortDir = $state<'asc' | 'desc'>('desc');
+
   let filteredLocs = $derived(
     fLocSearch.length >= 2
       ? $scLocations.filter((n) => n.toLowerCase().includes(fLocSearch.toLowerCase())).slice(0, 25)
       : []
   );
+
+  let displayTrades = $derived(
+    [...$trades]
+      .filter(t => !tableFilter || t.item.toLowerCase().includes(tableFilter.toLowerCase()))
+      .sort((a, b) => {
+        let av: string | number, bv: string | number;
+        if (sortCol === 'item')       { av = a.item;                       bv = b.item; }
+        else if (sortCol === 'qty')   { av = a.amountSold;                 bv = b.amountSold; }
+        else if (sortCol === 'sell')  { av = a.sellPrice;                  bv = b.sellPrice; }
+        else if (sortCol === 'yield') { av = a.amountSold * a.sellPrice;   bv = b.amountSold * b.sellPrice; }
+        else if (sortCol === 'profit') {
+          av = (a.buyPrice ?? 0) > 0 ? (a.sellPrice - (a.buyPrice ?? 0)) * a.amountSold : -Infinity;
+          bv = (b.buyPrice ?? 0) > 0 ? (b.sellPrice - (b.buyPrice ?? 0)) * b.amountSold : -Infinity;
+        }
+        else if (sortCol === 'location') { av = a.sellLocation; bv = b.sellLocation; }
+        else                          { av = a.soldAt;                     bv = b.soldAt; }
+        if (av < bv) return sortDir === 'asc' ? -1 : 1;
+        if (av > bv) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      })
+  );
+
+  function toggleSort(col: string) {
+    if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortCol = col; sortDir = 'asc'; }
+  }
+
+  function si(col: string) { return sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''; }
 
   function uec(n: number) { return n.toLocaleString() + ' aUEC'; }
 
@@ -26,6 +59,25 @@
       hour: '2-digit', minute: '2-digit'
     });
   }
+
+  function profitOf(t: Trade): number | null {
+    if (!t.buyPrice || t.buyPrice === 0) return null;
+    return (t.sellPrice - t.buyPrice) * t.amountSold;
+  }
+
+  function profitClass(p: number | null): string {
+    if (p === null) return 'text-muted';
+    if (p > 0) return 'text-green-400';
+    if (p < 0) return 'text-red-400';
+    return 'text-muted';
+  }
+
+  let totalYield = $derived($trades.reduce((sum, t) => sum + t.amountSold * t.sellPrice, 0));
+  let totalProfit = $derived($trades.reduce((sum, t) => {
+    const p = profitOf(t);
+    return p !== null ? sum + p : sum;
+  }, 0));
+  let hasProfitData = $derived($trades.some(t => t.buyPrice && t.buyPrice > 0));
 
   function openEdit(trade: Trade) {
     editTarget = trade;
@@ -55,7 +107,32 @@
     trades.update((list) => list.filter((t) => t.id !== id));
   }
 
-  let sorted = $derived([...$trades].sort((a, b) => b.soldAt.localeCompare(a.soldAt)));
+  function exportCSV() {
+    const headers = ['Item', 'Qty Sold', 'Buy Price/unit', 'Sell Price/unit', 'Profit', 'Yield', 'Location', 'Date'];
+    const rows = [...$trades]
+      .sort((a, b) => b.soldAt.localeCompare(a.soldAt))
+      .map(t => {
+        const p = profitOf(t);
+        return [
+          t.item,
+          t.amountSold,
+          t.buyPrice ?? '',
+          t.sellPrice,
+          p !== null ? p : '',
+          t.amountSold * t.sellPrice,
+          t.sellLocation,
+          new Date(t.soldAt).toLocaleString()
+        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+      });
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sc-trades-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 <div class="space-y-5">
@@ -67,7 +144,37 @@
         Trade Log
       </h1>
     </div>
+    {#if $trades.length > 0}
+      <div class="flex items-center gap-2">
+        {#if hasProfitData}
+          <div class="hidden sm:flex items-center gap-2 border border-border bg-surface px-3 py-1.5">
+            <span class="text-xs uppercase tracking-widest text-muted font-semibold">P&L</span>
+            <div class="w-px h-3 bg-border"></div>
+            <span style="font-family: 'Orbitron', sans-serif;" class="font-bold text-xs {totalProfit > 0 ? 'text-green-400' : totalProfit < 0 ? 'text-red-400' : 'text-muted'}">
+              {totalProfit >= 0 ? '+' : ''}{totalProfit.toLocaleString()} aUEC
+            </span>
+          </div>
+        {/if}
+        <button
+          onclick={exportCSV}
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-accent hover:text-accent transition-all duration-200"
+        >
+          <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span class="hidden sm:inline">CSV</span>
+        </button>
+      </div>
+    {/if}
   </div>
+
+  <!-- Filter bar -->
+  {#if $trades.length > 0}
+    <input
+      type="text"
+      placeholder="Filter by item name…"
+      bind:value={tableFilter}
+      class="w-full bg-bg border border-border px-3 py-2 text-sm text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+    />
+  {/if}
 
   <!-- Table -->
   {#if $trades.length === 0}
@@ -83,17 +190,19 @@
         <table class="w-full text-sm">
           <thead class="rsi-scanline bg-surface border-b border-border">
             <tr>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Item</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Qty</th>
-              <th class="hidden sm:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Sell Price</th>
-              <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Yield</th>
-              <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Location</th>
-              <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted">Date</th>
+              <th onclick={() => toggleSort('item')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Item{si('item')}</th>
+              <th onclick={() => toggleSort('qty')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Qty{si('qty')}</th>
+              <th onclick={() => toggleSort('sell')} class="hidden sm:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Sell Price{si('sell')}</th>
+              <th onclick={() => toggleSort('yield')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Yield{si('yield')}</th>
+              <th onclick={() => toggleSort('profit')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Profit{si('profit')}</th>
+              <th onclick={() => toggleSort('location')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Location{si('location')}</th>
+              <th onclick={() => toggleSort('soldAt')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Date{si('soldAt')}</th>
               <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
-            {#each sorted as trade (trade.id)}
+            {#each displayTrades as trade (trade.id)}
+              {@const profit = profitOf(trade)}
               <tr class="bg-bg hover:bg-surface transition-colors duration-150">
                 <td class="px-4 py-3 font-semibold text-text">{trade.item}</td>
                 <td class="px-4 py-3 text-text font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
@@ -104,6 +213,13 @@
                 </td>
                 <td class="px-4 py-3 text-accent font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
                   {trade.sellPrice > 0 ? uec(trade.amountSold * trade.sellPrice) : '—'}
+                </td>
+                <td class="px-4 py-3 font-bold {profitClass(profit)}" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
+                  {#if profit !== null}
+                    {profit >= 0 ? '+' : ''}{uec(profit)}
+                  {:else}
+                    <span class="text-muted opacity-40">—</span>
+                  {/if}
                 </td>
                 <td class="hidden md:table-cell px-4 py-3 text-muted text-xs">{trade.sellLocation || '—'}</td>
                 <td class="hidden md:table-cell px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">
@@ -123,6 +239,11 @@
                 </td>
               </tr>
             {/each}
+            {#if displayTrades.length === 0}
+              <tr>
+                <td colspan="8" class="px-4 py-8 text-center text-muted text-xs uppercase tracking-widest">No matching trades</td>
+              </tr>
+            {/if}
           </tbody>
         </table>
       </div>
