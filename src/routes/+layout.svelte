@@ -113,6 +113,14 @@
       >
         Trades
       </a>
+      <a
+        href="{base}/howto"
+        class="text-xs font-semibold uppercase tracking-widest transition-all duration-200 {isActive('/howto')
+          ? 'text-accent border-b border-accent pb-0.5'
+          : 'text-muted hover:text-text'}"
+      >
+        How To
+      </a>
 
       <div class="ml-auto flex items-center gap-3">
         <!-- Import -->

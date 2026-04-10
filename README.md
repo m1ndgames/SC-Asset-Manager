@@ -11,6 +11,10 @@ A lightweight, browser-based tracker for your Star Citizen in-game commodities. 
 - **Searchable trading locations** — only shows locations with Commodity Trading (~225 stations)
 - **Import / Export** — back up your data as JSON and restore it on any machine
 
+## Support
+
+If this tool saves you time, consider buying me a coffee: **https://ko-fi.com/m1ndio**
+
 ## Hosting options
 
 ### GitHub Pages (free, no setup)
