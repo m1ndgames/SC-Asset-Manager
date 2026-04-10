@@ -29,7 +29,7 @@
   });
 
   function isActive(path: string) {
-    return $page.url.pathname.startsWith(path);
+    return $page.url.pathname.startsWith(base + path);
   }
 
   // ── Export ────────────────────────────────────────────────────────────────────
@@ -82,13 +82,13 @@
       <span class="font-bold text-blue-400 tracking-wide">SC Asset Manager</span>
 
       <a
-        href="/assets"
+        href="{base}/assets"
         class="text-sm transition-colors {isActive('/assets') ? 'text-white font-medium' : 'text-gray-400 hover:text-white'}"
       >
         Assets
       </a>
       <a
-        href="/trades"
+        href="{base}/trades"
         class="text-sm transition-colors {isActive('/trades') ? 'text-white font-medium' : 'text-gray-400 hover:text-white'}"
       >
         Trades
