@@ -1,3 +1,19 @@
+# SC Asset Manager
+build/
+.svelte-kit/
+static/items.json
+static/locations.json
+
+# IDE
+.idea/
+.vscode/
+.claude/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
 # Logs
 logs
 *.log
