@@ -1,3 +1,6 @@
+<script>
+</script>
+
 <div class="space-y-10">
 
   <!-- Page heading -->
@@ -9,7 +12,7 @@
       </h1>
     </div>
     <p class="text-text text-base leading-relaxed ml-4">
-      SC Asset Manager is a lightweight, browser-based tool for tracking your Star Citizen commodities —
+      S.C.A.M (Star Citizen Asset Manager) is a lightweight, browser-based tool for tracking your Star Citizen commodities —
       what you have, where it's stored, what you paid, and what you sold it for.
       No account required. All data stays in your browser.
     </p>

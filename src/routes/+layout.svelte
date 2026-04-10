@@ -93,7 +93,7 @@
       <div class="flex items-center gap-2 sm:gap-3 shrink-0">
         <div class="w-1 h-6 bg-accent opacity-80"></div>
         <span style="font-family: 'Orbitron', sans-serif;" class="text-accent text-xs sm:text-sm font-bold tracking-widest uppercase hidden xs:block sm:block">
-          SC<span class="hidden sm:inline"> Asset Manager</span>
+          S.C.A.M
         </span>
       </div>
 
