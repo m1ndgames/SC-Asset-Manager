@@ -26,27 +26,23 @@
       </span>
     </div>
     <div class="px-5 py-4 space-y-4 text-sm text-text leading-relaxed">
-      <p>The <span class="text-accent font-semibold">Inventory</span> screen is your main view. It lists every commodity you currently hold.</p>
+      <p>The <span class="text-accent font-semibold">Inventory</span> screen lists everything you currently hold.</p>
       <ul class="space-y-3 ml-2">
         <li class="flex gap-3">
           <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span><span class="text-text font-semibold">Add Asset</span> — click the button top-right. Enter the item name (autocomplete searches ~7 000 SC items), quantity, buy price per unit, and where it's stored.</span>
+          <span><span class="text-text font-semibold">Add Asset</span> — enter item (autocomplete, ~7 000 SC items), quantity, buy price per unit, and storage location. If the same item already exists at that location you'll be asked to merge.</span>
         </li>
         <li class="flex gap-3">
           <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span><span class="text-text font-semibold">Edit</span> — update any field on an existing asset at any time.</span>
+          <span><span class="text-text font-semibold">Sell</span> — enter quantity, sell location, and sell price. The inventory updates immediately. The sell dialog shows your expected yield, total cost, and estimated profit. A record is created in the Trade Log.</span>
         </li>
         <li class="flex gap-3">
           <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span><span class="text-text font-semibold">Delete</span> — permanently removes the asset from your inventory.</span>
+          <span><span class="text-text font-semibold">Edit / Delete</span> — update or remove any asset at any time.</span>
         </li>
         <li class="flex gap-3">
           <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span>
-            <span class="text-text font-semibold">Sell</span> — opens the trade dialog. Enter how many units you sold, the sell location (autocomplete shows all Commodity Trading stations), and the price per unit.
-            The inventory is updated immediately — if you sell all units the asset is removed.
-            A record is created in the Trade Log.
-          </span>
+          <span><span class="text-text font-semibold">Sort & Filter</span> — click any column header to sort. Use the filter bar to search by item name.</span>
         </li>
       </ul>
     </div>
@@ -60,41 +56,48 @@
       </span>
     </div>
     <div class="px-5 py-4 space-y-3 text-sm text-text leading-relaxed">
-      <p>The <span class="text-accent font-semibold">Trade Log</span> records every sale you have made, sorted newest first.</p>
+      <p>Every sale you make is recorded here. Columns are sortable and filterable.</p>
       <ul class="space-y-3 ml-2">
         <li class="flex gap-3">
           <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span>The <span class="text-text font-semibold">Yield</span> column shows total proceeds per trade (quantity × price). Running total is shown in the header.</span>
+          <span><span class="text-text font-semibold">Profit</span> — shows per-trade profit (sell price − buy price × qty), color-coded green/red. Requires a buy price to have been set on the asset.</span>
         </li>
         <li class="flex gap-3">
           <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span><span class="text-text font-semibold">Edit</span> — correct the quantity, price, or location of a recorded trade.</span>
+          <span><span class="text-text font-semibold">P&L</span> — total profit/loss across all trades, shown in the header.</span>
         </li>
         <li class="flex gap-3">
           <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span><span class="text-text font-semibold">Delete</span> — removes the trade record. The inventory is not restored.</span>
+          <span><span class="text-text font-semibold">CSV Export</span> — download your full trade history as a spreadsheet-ready CSV file.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+          <span><span class="text-text font-semibold">Edit / Delete</span> — correct the quantity, price, or location of any trade record.</span>
         </li>
       </ul>
     </div>
   </section>
 
-  <!-- Section: Import / Export -->
+  <!-- Section: Nav bar stats -->
   <section class="rsi-panel border border-border">
     <div class="px-5 py-3 border-b border-border rsi-scanline flex items-center gap-3">
       <span style="font-family: 'Orbitron', sans-serif;" class="text-accent text-xs font-bold uppercase tracking-widest">
-        03 — Import &amp; Export
+        03 — Nav Bar
       </span>
     </div>
     <div class="px-5 py-4 space-y-3 text-sm text-text leading-relaxed">
-      <p>Your data lives in your browser's local storage — nothing is sent to any server. Use Export/Import to back up or migrate between machines.</p>
       <ul class="space-y-3 ml-2">
         <li class="flex gap-3">
           <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span><span class="text-text font-semibold">Export Data</span> (nav bar) — downloads a <code class="text-accent bg-surface px-1">sc-assets-YYYY-MM-DD.json</code> file containing all your assets and trades.</span>
+          <span><span class="text-text font-semibold">Portfolio</span> — total value of your current inventory (amount × buy price).</span>
         </li>
         <li class="flex gap-3">
           <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span><span class="text-text font-semibold">Import Data</span> (nav bar) — select a previously exported JSON file to restore. <span class="text-muted">This replaces your current data.</span></span>
+          <span><span class="text-text font-semibold">Yield</span> — total aUEC earned across all recorded sales.</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+          <span><span class="text-text font-semibold">Import / Export</span> — back up your data as JSON and restore it on any machine.</span>
         </li>
       </ul>
     </div>
@@ -111,9 +114,8 @@
       <p>
         Item names (~7 265 commodities) and trading locations (~225 stations with Commodity Trading) are
         sourced from <a href="https://github.com/StarCitizenWiki/scunpacked-data" target="_blank" rel="noopener noreferrer" class="text-accent hover:text-accent-hover underline underline-offset-2 transition-colors">StarCitizenWiki/scunpacked-data</a>
-        and bundled with each release of the app. No manual import needed.
+        and bundled with each release. Data updates automatically when a new version is deployed after a patch.
       </p>
-      <p class="text-muted">Data is updated automatically when a new version of the app is deployed after a Star Citizen patch.</p>
     </div>
   </section>
 
