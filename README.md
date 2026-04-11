@@ -7,10 +7,11 @@ A lightweight, browser-based tracker for your Star Citizen in-game commodities. 
 - **Track assets** — log items you've bought with amount, price paid, and storage location
 - **Record sales** — mark assets as sold with quantity, sell location, and price; inventory updates automatically
 - **Trade history** — view all past sell orders with total proceeds and P&L summary
-- **Searchable item catalogue** — autocomplete backed by [StarCitizenWiki/scunpacked-data](https://github.com/StarCitizenWiki/scunpacked-data) (~7 000 items)
+- **Searchable item catalogue** — autocomplete backed by [StarCitizenWiki/scunpacked-data](https://github.com/StarCitizenWiki/scunpacked-data) (~7 500 items including ships, typed by category)
 - **Searchable trading locations** — only shows locations with Commodity Trading (~225 stations)
 - **CSV export** — download your full trade history as a spreadsheet-ready CSV file
 - **Import / Export** — back up your data as JSON and restore it on any machine
+- **UEX Corp integration** *(opt-in)* — click any asset to see live sell prices, best locations by system, profit estimates, and commodity flags powered by [UEX Corp API](https://uexcorp.space/api/documentation/)
 - **Firebase sync** *(opt-in)* — share a live database across multiple users with role-based access control; see [FIREBASE.md](FIREBASE.md) for setup
 
 ## Support
@@ -41,9 +42,13 @@ By default all data is stored in your browser's `localStorage` — nothing is se
 
 Use the **Export Data** button in the nav bar to download a JSON backup of your assets and trades. On the new machine, click **Import Data** to restore.
 
+### UEX Corp live prices
+
+Click any asset name in the Inventory to open a detail panel. With a free UEX Corp API key added in **Settings**, the panel shows live sell prices across all terminals (filterable by star system), profit per unit vs your buy price, and a direct link to the UEX Corp item page. Get a free key at [uexcorp.space/api/apps](https://uexcorp.space/api/apps).
+
 ### Multi-user / group play
 
-Enable optional Firebase sync via the **Sync** settings page. All members share a live Firestore database and see each other's assets and trades in real time. Each action is attributed to a nickname. Roles (`user`, `moderator`, `admin`) control what each member can do — see [FIREBASE.md](FIREBASE.md) for the full setup guide.
+Enable optional Firebase sync via the **Settings** page. All members share a live Firestore database and see each other's assets and trades in real time. Each action is attributed to a nickname. Roles (`user`, `moderator`, `admin`) control what each member can do — see [FIREBASE.md](FIREBASE.md) for the full setup guide.
 
 ## Development
 

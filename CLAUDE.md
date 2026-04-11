@@ -22,13 +22,15 @@ SC Asset Manager is a browser-based Star Citizen commodity tracker. It is a full
 
 ```
 scripts/fetch_items.py
-  → static/items.json       (7 265 item names, string[])
+  → static/items.json       (~7 476 items as {name,type}[], incl. ships)
   → static/locations.json   (225 trading locations, string[])
         ↓
 +layout.svelte fetches both on mount via Promise.allSettled
         ↓
 scItems / scLocations stores (plain writable, NOT localStorage-backed)
 ```
+
+`items.json` entries carry a `type` field (`clothing | armor | weapon | commodity | consumable | paint | ship | item`) derived at build time from `AttachDef.Type` and component presence in scunpacked-data. Ships come from the `ships/` directory (root-level `Name` field). This type is used both for the asset-view type-filter UI and for routing UEX API lookups to the correct endpoint.
 
 User data (`assets`, `trades`) is held in localStorage-backed stores defined in `src/lib/stores.ts`.
 
@@ -39,7 +41,8 @@ User data (`assets`, `trades`) is held in localStorage-backed stores defined in 
 | `assets` | `Asset[]` | localStorage |
 | `trades` | `Trade[]` | localStorage |
 | `nickname` | `string` | localStorage |
-| `scItems` | `string[]` | no (fetched on load) |
+| `uexApiKey` | `string` | localStorage |
+| `scItems` | `ScItem[]` | no (fetched on load) |
 | `scLocations` | `string[]` | no (fetched on load) |
 | `firebaseUser` | `User \| null` | no (set by auth listener) |
 | `userRole` | `Role \| null` | no (fetched on sign-in) |
@@ -50,10 +53,10 @@ User data (`assets`, `trades`) is held in localStorage-backed stores defined in 
 | Route | Purpose |
 |---|---|
 | `/` | redirects to `/assets` |
-| `/assets` | add / edit / delete assets; sell modal creates a Trade and reduces asset quantity; Mine filter |
+| `/assets` | add / edit / delete assets; sell modal; Mine filter; type filter; click item name → UEX detail popup |
 | `/trades` | trade history; edit / delete records; CSV export; Mine filter |
-| `/settings` | Firebase config, sign-in/out, nickname, role management (admin only) |
-| `/howto` | static usage guide |
+| `/settings` | Firebase config, sign-in/out, nickname, role management (admin only); UEX API key |
+| `/info` | static usage guide (formerly `/howto`) |
 
 ### Firebase lib files (`src/lib/`)
 
@@ -63,6 +66,23 @@ User data (`assets`, `trades`) is held in localStorage-backed stores defined in 
 | `auth.ts` | `signIn`, `signOut`, `initAuthListener` — fetches role on sign-in |
 | `firestoreSync.ts` | `startSync` / `stopSync` — real-time listeners on `/assets` and `/trades`; migration flow |
 | `roleManager.ts` | `setUserRole`, `getAllRoles`, `getAllProfiles` |
+
+### UEX Corp lib (`src/lib/uex.ts`)
+
+Client for the [UEX Corp API v2](https://uexcorp.space/api/documentation/) with module-level in-memory cache (commodities/items: 1 h, prices: 30 min). Key exports:
+
+| Export | Purpose |
+|---|---|
+| `findEntity(apiKey, name, scType?)` | Search UEX for an item by name; routes to `/commodities` or `/items` based on `scType` hint |
+| `fetchCommodityPrices(apiKey, id)` | Prices for a commodity from `/commodities_prices` |
+| `fetchItemPrices(apiKey, id)` | Prices for an item from `/items_prices` |
+| `topSellLocations(prices, n)` | Returns top N terminals sorted by sell price |
+| `uexEntityUrl(entity)` | Constructs the correct UEX Corp page URL (`?name=slug`) |
+
+`findEntity` routing rules (via `scType` from `ScItem.type`):
+- `clothing | armor | weapon` → skip `/commodities`, query `/items` only
+- `commodity | consumable` → skip `/items`, query `/commodities` only
+- anything else → try `/commodities` first, fall back to `/items`
 
 ### Base path
 
