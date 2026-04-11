@@ -1,3 +1,14 @@
+export type Role = 'admin' | 'moderator' | 'user';
+
+export interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
+
 export interface Asset {
   id: string;
   item: string;
@@ -5,6 +16,7 @@ export interface Asset {
   buyPrice: number; // aUEC per unit
   location: string;
   createdAt: string;
+  loggedBy?: string; // nickname of the user who created the record (Firebase mode only)
 }
 
 export interface Trade {
@@ -16,5 +28,6 @@ export interface Trade {
   sellPrice: number;  // aUEC per unit
   sellLocation: string;
   soldAt: string;
+  loggedBy?: string; // nickname of the user who logged the trade (Firebase mode only)
 }
 

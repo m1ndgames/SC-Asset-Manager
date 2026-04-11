@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { trades, scLocations } from '$lib/stores';
+  import { trades, scLocations, firebaseUser, nickname } from '$lib/stores';
   import type { Trade } from '$lib/types';
 
   let showEditModal = $state(false);
@@ -204,7 +204,12 @@
             {#each displayTrades as trade (trade.id)}
               {@const profit = profitOf(trade)}
               <tr class="bg-bg hover:bg-surface transition-colors duration-150">
-                <td class="px-4 py-3 font-semibold text-text">{trade.item}</td>
+                <td class="px-4 py-3">
+                  <span class="font-semibold text-text">{trade.item}</span>
+                  {#if trade.loggedBy}
+                    <span class="block text-xs text-muted/60 font-normal mt-0.5">{trade.loggedBy}</span>
+                  {/if}
+                </td>
                 <td class="px-4 py-3 text-text font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
                   {trade.amountSold.toLocaleString()}
                 </td>

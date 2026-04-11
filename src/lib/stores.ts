@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
-import type { Asset, Trade } from './types';
+import type { Asset, Trade, Role } from './types';
+import type { User } from 'firebase/auth';
 
 function localStore<T>(key: string, initial: T) {
   let initial_value = initial;
@@ -24,9 +25,17 @@ function localStore<T>(key: string, initial: T) {
 
 export const assets = localStore<Asset[]>('sc_assets', []);
 export const trades = localStore<Trade[]>('sc_trades', []);
+export const nickname = localStore<string>('sc_nickname', '');
 
 // Item names fetched from /items.json at startup — not persisted to localStorage
 export const scItems = writable<string[]>([]);
 
 // Trading location names fetched from /locations.json at startup
 export const scLocations = writable<string[]>([]);
+
+// Firebase — not persisted, set at runtime
+export const firebaseUser = writable<User | null>(null);
+export const userRole = writable<Role | null>(null);
+
+// Set to true when user first signs in with local data but empty Firestore
+export const migrationPending = writable<boolean>(false);
