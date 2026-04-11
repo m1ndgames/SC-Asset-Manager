@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postbuild": "cp build/index.html build/404.html"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",
