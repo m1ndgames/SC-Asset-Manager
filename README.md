@@ -6,10 +6,12 @@ A lightweight, browser-based tracker for your Star Citizen in-game commodities. 
 
 - **Track assets** — log items you've bought with amount, price paid, and storage location
 - **Record sales** — mark assets as sold with quantity, sell location, and price; inventory updates automatically
-- **Trade history** — view all past sell orders with total proceeds
+- **Trade history** — view all past sell orders with total proceeds and P&L summary
 - **Searchable item catalogue** — autocomplete backed by [StarCitizenWiki/scunpacked-data](https://github.com/StarCitizenWiki/scunpacked-data) (~7 000 items)
 - **Searchable trading locations** — only shows locations with Commodity Trading (~225 stations)
+- **CSV export** — download your full trade history as a spreadsheet-ready CSV file
 - **Import / Export** — back up your data as JSON and restore it on any machine
+- **Firebase sync** *(opt-in)* — share a live database across multiple users with role-based access control; see [FIREBASE.md](FIREBASE.md) for setup
 
 ## Support
 
@@ -33,11 +35,15 @@ This pulls `ghcr.io/m1ndgames/sc-asset-manager:latest` and serves the app on **h
 
 ## How it works
 
-All data is stored in your browser's `localStorage` — nothing is sent to any server. The item and location databases are built from scunpacked-data at Docker/Pages build time and shipped as static JSON files, so no import step is needed.
+By default all data is stored in your browser's `localStorage` — nothing is sent to any server. The item and location databases are built from scunpacked-data at Docker/Pages build time and shipped as static JSON files.
 
 ### Switching machines
 
 Use the **Export Data** button in the nav bar to download a JSON backup of your assets and trades. On the new machine, click **Import Data** to restore.
+
+### Multi-user / group play
+
+Enable optional Firebase sync via the **Sync** settings page. All members share a live Firestore database and see each other's assets and trades in real time. Each action is attributed to a nickname. Roles (`user`, `moderator`, `admin`) control what each member can do — see [FIREBASE.md](FIREBASE.md) for the full setup guide.
 
 ## Development
 

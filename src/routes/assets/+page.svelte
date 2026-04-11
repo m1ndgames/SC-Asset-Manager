@@ -1,6 +1,18 @@
 <script lang="ts">
-  import { assets, trades, scItems, scLocations, firebaseUser, nickname } from '$lib/stores';
+  import { assets, trades, scItems, scLocations, firebaseUser, nickname, userRole } from '$lib/stores';
   import type { Asset } from '$lib/types';
+
+  // ── Permissions ─────────────────────────────────────────────────────────────
+  let isMod    = $derived($userRole === 'moderator' || $userRole === 'admin');
+  let canAdd   = $derived(!$firebaseUser || !!$userRole);
+  let canEdit  = $derived(!$firebaseUser || isMod);
+  let canDelete = $derived(!$firebaseUser || isMod);
+  function canSell(asset: Asset): boolean {
+    if (!$firebaseUser) return true;
+    if (isMod) return true;
+    // 'user' role: only own assets (matched by nickname, or legacy assets with no loggedBy)
+    return !asset.loggedBy || asset.loggedBy === $nickname;
+  }
 
   // ── Modal visibility ────────────────────────────────────────────────────────
   let showAddModal = $state(false);
@@ -34,6 +46,7 @@
 
   // ── Table state ───────────────────────────────────────────────────────────────
   let tableFilter = $state('');
+  let showMineOnly = $state(false);
   let sortCol = $state('createdAt');
   let sortDir = $state<'asc' | 'desc'>('desc');
 
@@ -56,6 +69,7 @@
   let displayAssets = $derived(
     [...$assets]
       .filter(a => !tableFilter || a.item.toLowerCase().includes(tableFilter.toLowerCase()))
+      .filter(a => !showMineOnly || a.loggedBy === $nickname)
       .sort((a, b) => {
         let av: string | number, bv: string | number;
         if (sortCol === 'item')          { av = a.item;               bv = b.item; }
@@ -205,22 +219,34 @@
         Inventory
       </h1>
     </div>
-    <button
-      onclick={openAdd}
-      class="rsi-panel px-4 py-2 bg-surface-2 border border-border-bright text-accent text-xs font-bold uppercase tracking-widest hover:bg-accent hover:text-bg hover:border-accent transition-all duration-200"
-    >
-      + Add Asset
-    </button>
+    {#if canAdd}
+      <button
+        onclick={openAdd}
+        class="rsi-panel px-4 py-2 bg-surface-2 border border-border-bright text-accent text-xs font-bold uppercase tracking-widest hover:bg-accent hover:text-bg hover:border-accent transition-all duration-200"
+      >
+        + Add Asset
+      </button>
+    {/if}
   </div>
 
   <!-- Filter bar -->
   {#if $assets.length > 0}
-    <input
-      type="text"
-      placeholder="Filter by item name…"
-      bind:value={tableFilter}
-      class="w-full bg-bg border border-border px-3 py-2 text-sm text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
-    />
+    <div class="flex gap-2">
+      <input
+        type="text"
+        placeholder="Filter by item name…"
+        bind:value={tableFilter}
+        class="flex-1 bg-bg border border-border px-3 py-2 text-sm text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+      />
+      {#if $firebaseUser}
+        <button
+          onclick={() => showMineOnly = !showMineOnly}
+          class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border transition-all duration-200 {showMineOnly ? 'border-accent text-accent bg-accent/10' : 'border-border text-muted hover:border-accent hover:text-accent'}"
+        >
+          Mine
+        </button>
+      {/if}
+    </div>
   {/if}
 
   <!-- Table -->
@@ -270,18 +296,24 @@
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-2">
-                    <button onclick={() => openSell(asset)}
-                      class="px-3 py-1 bg-accent-glow border border-accent-dim text-accent text-xs font-bold uppercase tracking-wider hover:bg-accent hover:text-bg transition-all duration-150">
-                      Sell
-                    </button>
-                    <button onclick={() => openEdit(asset)}
-                      class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-text hover:text-text transition-all duration-150">
-                      Edit
-                    </button>
-                    <button onclick={() => deleteAsset(asset.id)}
-                      class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-red-700 hover:text-red-500 transition-all duration-150">
-                      Delete
-                    </button>
+                    {#if canSell(asset)}
+                      <button onclick={() => openSell(asset)}
+                        class="px-3 py-1 bg-accent-glow border border-accent-dim text-accent text-xs font-bold uppercase tracking-wider hover:bg-accent hover:text-bg transition-all duration-150">
+                        Sell
+                      </button>
+                    {/if}
+                    {#if canEdit}
+                      <button onclick={() => openEdit(asset)}
+                        class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-text hover:text-text transition-all duration-150">
+                        Edit
+                      </button>
+                    {/if}
+                    {#if canDelete}
+                      <button onclick={() => deleteAsset(asset.id)}
+                        class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-red-700 hover:text-red-500 transition-all duration-150">
+                        Delete
+                      </button>
+                    {/if}
                   </div>
                 </td>
               </tr>

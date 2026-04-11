@@ -10,10 +10,9 @@ service cloud.firestore {
     function isAuthed()   { return request.auth != null; }
     function isOwner(uid) { return request.auth != null && request.auth.uid == uid; }
 
-    // Roles — any authed user can read their own; list requires admin; only admins write
+    // Roles — any authed user can read; only admins write
     match /roles/{userId} {
       allow read:  if isAuthed();
-      allow list:  if isAdmin();
       allow write: if isAdmin();
     }
 

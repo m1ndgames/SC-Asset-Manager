@@ -8,9 +8,9 @@ SC Asset Manager is fully functional as a standalone, offline-first app. Firebas
 
 - Each user brings the same Firebase project config into their app via the **Sync** settings page
 - Users sign in with an email/password account created inside that Firebase project
-- Data is stored per-user under `/users/{uid}/assets` and `/users/{uid}/trades`
-- All authenticated members of the project can read each other's records in real time
+- All assets and trades are stored in shared collections (`/assets`, `/trades`) — every member of the project sees the same data in real time
 - Each logged action is attributed to a nickname (never an email address)
+- Actions available to each member depend on their **role** (see Role reference below)
 
 ---
 
@@ -62,15 +62,7 @@ firebase login
 firebase deploy --only firestore:rules --project <your-project-id>
 ```
 
-These rules enforce:
-
-| Role | Can do |
-|---|---|
-| `admin` | Read/write any record, assign/change roles |
-| `moderator` | Read/write any user's records |
-| `user` | Read/write own records only |
-
-Any authenticated user can read all records (needed for the group view).
+These rules enforce that only authenticated users can read or write data, and that role escalation (writing to `/roles`) requires admin privileges. See the Role reference section for the full permission matrix.
 
 ---
 
@@ -112,18 +104,26 @@ Share the config snippet with your group members. They repeat steps 6 onwards wi
 
 1. In Firebase Console → **Authentication → Users → Add user**, create an account for each member and give them their credentials out-of-band
 2. Each member connects the app using the shared config and their own credentials
-3. New members get the `user` role by default
+3. New members automatically get the `user` role on their first sign-in
 4. The admin can change roles at any time via **Sync → Role Management**
 
 ---
 
 ## Role reference
 
-| Role | Assign/change roles | Write any user's records | Write own records | Read all records |
-|---|:---:|:---:|:---:|:---:|
-| `admin` | ✓ | ✓ | ✓ | ✓ |
-| `moderator` | — | ✓ | ✓ | ✓ |
-| `user` | — | — | ✓ | ✓ |
+| Action | `user` | `moderator` | `admin` |
+|---|:---:|:---:|:---:|
+| View all assets & trades | ✓ | ✓ | ✓ |
+| Add asset | ✓ | ✓ | ✓ |
+| Sell **own** assets | ✓ | ✓ | ✓ |
+| Sell **any** asset | — | ✓ | ✓ |
+| Edit / Delete any asset | — | ✓ | ✓ |
+| Edit / Delete any trade | — | ✓ | ✓ |
+| Assign / change roles | — | — | ✓ |
+
+**"Own" asset** means the asset was logged under your nickname. Legacy assets with no `loggedBy` value are treated as own by any user so nobody gets locked out of pre-existing data.
+
+New members automatically receive the `user` role on first sign-in. The admin can promote them via **Sync → Role Management**. In standalone mode (no Firebase), all actions are always available.
 
 ---
 
@@ -158,10 +158,14 @@ The free tier is more than sufficient for a small group:
 /roles
   /{uid}          → { role: "admin" | "moderator" | "user" }
 
-/users
-  /{uid}
-    /assets
-      /{assetId}  → { id, item, amount, buyPrice, location, createdAt, loggedBy? }
-    /trades
-      /{tradeId}  → { id, assetId, item, amountSold, buyPrice?, sellPrice, sellLocation, soldAt, loggedBy? }
+/profiles
+  /{uid}          → { email: string }   (written automatically on sign-in)
+
+/assets
+  /{assetId}      → { id, item, amount, buyPrice, location, createdAt, loggedBy? }
+
+/trades
+  /{tradeId}      → { id, assetId, item, amountSold, buyPrice?, sellPrice, sellLocation, soldAt, loggedBy? }
 ```
+
+All members share the same `/assets` and `/trades` collections — there are no per-user sub-collections.

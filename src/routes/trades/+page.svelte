@@ -1,6 +1,9 @@
 <script lang="ts">
-  import { trades, scLocations, firebaseUser, nickname } from '$lib/stores';
+  import { trades, scLocations, firebaseUser, nickname, userRole } from '$lib/stores';
   import type { Trade } from '$lib/types';
+
+  // ── Permissions ──────────────────────────────────────────────────────────────
+  let canManage = $derived(!$firebaseUser || $userRole === 'moderator' || $userRole === 'admin');
 
   let showEditModal = $state(false);
   let editTarget = $state<Trade | null>(null);
@@ -14,6 +17,7 @@
 
   // ── Table state ───────────────────────────────────────────────────────────────
   let tableFilter = $state('');
+  let showMineOnly = $state(false);
   let sortCol = $state('soldAt');
   let sortDir = $state<'asc' | 'desc'>('desc');
 
@@ -26,6 +30,7 @@
   let displayTrades = $derived(
     [...$trades]
       .filter(t => !tableFilter || t.item.toLowerCase().includes(tableFilter.toLowerCase()))
+      .filter(t => !showMineOnly || t.loggedBy === $nickname)
       .sort((a, b) => {
         let av: string | number, bv: string | number;
         if (sortCol === 'item')       { av = a.item;                       bv = b.item; }
@@ -72,12 +77,12 @@
     return 'text-muted';
   }
 
-  let totalYield = $derived($trades.reduce((sum, t) => sum + t.amountSold * t.sellPrice, 0));
-  let totalProfit = $derived($trades.reduce((sum, t) => {
+  let totalYield = $derived(displayTrades.reduce((sum, t) => sum + t.amountSold * t.sellPrice, 0));
+  let totalProfit = $derived(displayTrades.reduce((sum, t) => {
     const p = profitOf(t);
     return p !== null ? sum + p : sum;
   }, 0));
-  let hasProfitData = $derived($trades.some(t => t.buyPrice && t.buyPrice > 0));
+  let hasProfitData = $derived(displayTrades.some(t => t.buyPrice && t.buyPrice > 0));
 
   function openEdit(trade: Trade) {
     editTarget = trade;
@@ -173,12 +178,22 @@
 
   <!-- Filter bar -->
   {#if $trades.length > 0}
-    <input
-      type="text"
-      placeholder="Filter by item name…"
-      bind:value={tableFilter}
-      class="w-full bg-bg border border-border px-3 py-2 text-sm text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
-    />
+    <div class="flex gap-2">
+      <input
+        type="text"
+        placeholder="Filter by item name…"
+        bind:value={tableFilter}
+        class="flex-1 bg-bg border border-border px-3 py-2 text-sm text-text placeholder-muted focus:outline-none focus:border-accent transition-colors"
+      />
+      {#if $firebaseUser}
+        <button
+          onclick={() => showMineOnly = !showMineOnly}
+          class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border transition-all duration-200 {showMineOnly ? 'border-accent text-accent bg-accent/10' : 'border-border text-muted hover:border-accent hover:text-accent'}"
+        >
+          Mine
+        </button>
+      {/if}
+    </div>
   {/if}
 
   <!-- Table -->
@@ -237,14 +252,16 @@
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-2">
-                    <button onclick={() => openEdit(trade)}
-                      class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-text hover:text-text transition-all duration-150">
-                      Edit
-                    </button>
-                    <button onclick={() => deleteTrade(trade.id)}
-                      class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-red-700 hover:text-red-500 transition-all duration-150">
-                      Delete
-                    </button>
+                    {#if canManage}
+                      <button onclick={() => openEdit(trade)}
+                        class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-text hover:text-text transition-all duration-150">
+                        Edit
+                      </button>
+                      <button onclick={() => deleteTrade(trade.id)}
+                        class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-red-700 hover:text-red-500 transition-all duration-150">
+                        Delete
+                      </button>
+                    {/if}
                   </div>
                 </td>
               </tr>

@@ -34,9 +34,17 @@
     }
   });
 
-  // React to userRole resolving after mount (auth is async)
+  // Reset role/profile maps on sign-out so they reload fresh after the next sign-in
   $effect(() => {
-    if ($userRole === 'admin' && roleMap.size === 0 && !roleLoading) {
+    if (!$firebaseUser) {
+      roleMap = new Map();
+      profileMap = new Map();
+    }
+  });
+
+  // Load roles once when admin is confirmed and maps are empty
+  $effect(() => {
+    if ($userRole === 'admin' && roleMap.size === 0 && profileMap.size === 0 && !roleLoading) {
       loadRoles();
     }
   });
@@ -323,20 +331,18 @@
 
       {#if roleLoading}
         <p class="text-xs text-muted uppercase tracking-wider animate-pulse">Loading…</p>
-      {:else if roleMap.size === 0}
-        <p class="text-xs text-muted">No role documents found in Firestore.</p>
+      {:else if profileMap.size === 0}
+        <p class="text-xs text-muted">No users found. Users appear here after their first sign-in.</p>
       {:else}
         <div class="space-y-2">
-          {#each [...roleMap.entries()] as [uid, role]}
+          {#each [...profileMap.entries()] as [uid, email]}
             <div class="flex items-center gap-3 border border-border px-3 py-2">
               <div class="flex flex-col gap-0.5 flex-1 min-w-0">
-                <span class="text-xs text-text font-semibold truncate">
-                  {profileMap.get(uid) ?? '—'}
-                </span>
+                <span class="text-xs text-text font-semibold truncate">{email}</span>
                 <span class="text-xs font-mono text-muted/50 truncate">{uid}</span>
               </div>
               <select
-                value={role}
+                value={roleMap.get(uid) ?? 'user'}
                 onchange={(e) => updateRole(uid, (e.target as HTMLSelectElement).value as Role)}
                 class="bg-bg border border-border text-text text-xs px-2 py-1 focus:outline-none focus:border-accent transition-colors shrink-0"
               >
