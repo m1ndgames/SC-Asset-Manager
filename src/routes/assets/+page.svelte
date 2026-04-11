@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { assets, trades, scItems, scLocations } from '$lib/stores';
+  import { assets, trades, scItems, scLocations, firebaseUser, nickname } from '$lib/stores';
   import type { Asset } from '$lib/types';
 
   // ── Modal visibility ────────────────────────────────────────────────────────
@@ -120,7 +120,8 @@
       amount: Number(fAmount),
       buyPrice: Number(fBuyPrice) || 0,
       location: fLocation.trim(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      ...($firebaseUser && $nickname ? { loggedBy: $nickname } : {})
     }]);
     showAddModal = false;
   }
@@ -175,7 +176,8 @@
       buyPrice: sellTarget!.buyPrice,
       sellPrice: Number(sSellPrice) || 0,
       sellLocation: sSellLocation.trim(),
-      soldAt: new Date().toISOString()
+      soldAt: new Date().toISOString(),
+      ...($firebaseUser && $nickname ? { loggedBy: $nickname } : {})
     }]);
 
     assets.update((list) => {
@@ -247,7 +249,12 @@
           <tbody class="divide-y divide-border">
             {#each displayAssets as asset (asset.id)}
               <tr class="bg-bg hover:bg-surface transition-colors duration-150 group">
-                <td class="px-4 py-3 font-semibold text-text">{asset.item}</td>
+                <td class="px-4 py-3">
+                  <span class="font-semibold text-text">{asset.item}</span>
+                  {#if asset.loggedBy}
+                    <span class="block text-xs text-muted/60 font-normal mt-0.5">{asset.loggedBy}</span>
+                  {/if}
+                </td>
                 <td class="px-4 py-3 text-accent font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 12px;">
                   {asset.amount.toLocaleString()}
                 </td>

@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function role() {
+      return get(/databases/$(database)/documents/roles/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin()    { return request.auth != null && role() == 'admin'; }
+    function isMod()      { return request.auth != null && role() in ['admin', 'moderator']; }
+    function isAuthed()   { return request.auth != null; }
+    function isOwner(uid) { return request.auth.uid == uid; }
+
+    // Roles — any authed user can read their own; list requires admin; only admins write
+    match /roles/{userId} {
+      allow read:  if isAuthed();
+      allow list:  if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // User records — owner, moderator, or admin can write; any authed user can read
+    match /users/{userId}/{document=**} {
+      allow read:  if isAuthed();
+      allow write: if isAdmin() || isMod() || isOwner(userId);
+    }
+
+    // Profiles — users write their own (email, nickname); any authed user can read
+    match /profiles/{userId} {
+      allow read: if isAuthed();
+      allow write: if isOwner(userId);
+    }
+  }
+}

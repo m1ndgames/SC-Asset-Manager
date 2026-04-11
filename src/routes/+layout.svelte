@@ -1,15 +1,21 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/stores';
-  import { assets, trades, scItems, scLocations } from '$lib/stores';
-  import { onMount } from 'svelte';
+  import { assets, trades, scItems, scLocations, firebaseUser, userRole, migrationPending, nickname } from '$lib/stores';
+  import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { base } from '$app/paths';
+  import { readStoredConfig, initFirebase, isFirebaseReady } from '$lib/firebase';
+  import { initAuthListener, destroyAuthListener } from '$lib/auth';
+  import { startSync, stopSync, migrateLocalToFirestore, skipMigration } from '$lib/firestoreSync';
 
   let { children } = $props();
 
   let itemsError = $state(false);
   let importError = $state('');
+
+  let currentUid = $state<string | null>(null);
+  let firebaseReady = $state(false);
 
   let totalYield = $derived($trades.reduce((sum, t) => sum + t.amountSold * t.sellPrice, 0));
   let portfolioValue = $derived($assets.reduce((sum, a) => sum + a.amount * a.buyPrice, 0));
@@ -29,6 +35,28 @@
     if (locationsRes.status === 'fulfilled' && locationsRes.value.ok) {
       scLocations.set(await locationsRes.value.json());
     }
+
+    // Firebase — only if the user has saved a config
+    const config = readStoredConfig();
+    if (config) {
+      await initFirebase(config);
+      firebaseReady = true;
+      await initAuthListener(
+        async (uid) => {
+          currentUid = uid;
+          await startSync(uid);
+        },
+        () => {
+          currentUid = null;
+          stopSync();
+        }
+      );
+    }
+  });
+
+  onDestroy(() => {
+    destroyAuthListener();
+    stopSync();
   });
 
   function isActive(path: string) {
@@ -124,6 +152,17 @@
       >
         How To
       </a>
+      <a
+        href="{base}/settings"
+        class="relative text-xs font-semibold uppercase tracking-widest transition-all duration-200 {isActive('/settings')
+          ? 'text-accent border-b border-accent pb-0.5'
+          : 'text-muted hover:text-text'}"
+      >
+        Sync
+        {#if $firebaseUser}
+          <span class="absolute -top-1 -right-2 w-1.5 h-1.5 rounded-full bg-accent"></span>
+        {/if}
+      </a>
 
       <div class="ml-auto flex items-center gap-2">
         {#if $assets.length > 0 && portfolioValue > 0}
@@ -170,6 +209,29 @@
     <div class="bg-red-950/60 border-b border-red-900 px-6 py-2 text-xs text-red-400 text-center uppercase tracking-wider font-semibold">
       {importError}
       <button onclick={() => importError = ''} class="ml-4 text-red-500 hover:text-red-300 transition-colors">✕</button>
+    </div>
+  {/if}
+
+  {#if $firebaseUser && !$nickname}
+    <div class="bg-yellow-950/40 border-b border-yellow-800/60 px-6 py-2 flex items-center justify-center gap-3 text-xs">
+      <span class="text-yellow-400 font-semibold uppercase tracking-wider">Sync active — set a nickname so your actions are attributed</span>
+      <a href="{base}/settings" class="px-3 py-1 border border-yellow-700 text-yellow-400 hover:bg-yellow-800/40 transition-all duration-200 font-semibold uppercase tracking-wider">
+        Set Nickname
+      </a>
+    </div>
+  {/if}
+
+  {#if $migrationPending && currentUid}
+    <div class="bg-accent/10 border-b border-accent/40 px-6 py-2.5 flex items-center justify-center gap-4 text-xs">
+      <span class="text-accent font-semibold uppercase tracking-wider">Local data detected — push to Firebase?</span>
+      <button
+        onclick={() => migrateLocalToFirestore(currentUid!)}
+        class="px-3 py-1 border border-accent text-accent hover:bg-accent hover:text-bg transition-all duration-200 font-semibold uppercase tracking-wider"
+      >Push</button>
+      <button
+        onclick={() => skipMigration(currentUid!)}
+        class="px-3 py-1 border border-border text-muted hover:border-text hover:text-text transition-all duration-200 font-semibold uppercase tracking-wider"
+      >Skip</button>
     </div>
   {/if}
 
