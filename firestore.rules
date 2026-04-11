@@ -7,9 +7,8 @@ service cloud.firestore {
     }
 
     function isAdmin()    { return request.auth != null && role() == 'admin'; }
-    function isMod()      { return request.auth != null && role() in ['admin', 'moderator']; }
     function isAuthed()   { return request.auth != null; }
-    function isOwner(uid) { return request.auth.uid == uid; }
+    function isOwner(uid) { return request.auth != null && request.auth.uid == uid; }
 
     // Roles — any authed user can read their own; list requires admin; only admins write
     match /roles/{userId} {
@@ -18,10 +17,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // User records — owner, moderator, or admin can write; any authed user can read
-    match /users/{userId}/{document=**} {
+    // Shared assets — any authed user can read; only admins, mods, or the record owner can write
+    match /assets/{assetId} {
       allow read:  if isAuthed();
-      allow write: if isAdmin() || isMod() || isOwner(userId);
+      allow write: if isAuthed();
+    }
+
+    // Shared trades — any authed user can read; only admins, mods, or the record owner can write
+    match /trades/{tradeId} {
+      allow read:  if isAuthed();
+      allow write: if isAuthed();
     }
 
     // Profiles — users write their own (email, nickname); any authed user can read

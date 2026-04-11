@@ -20,8 +20,8 @@ export async function startSync(uid: string): Promise<void> {
 
   // Check if migration is needed: local data exists but Firestore is empty
   const [fsAssetsSnap, fsTradesSnap] = await Promise.all([
-    getDocs(collection(db, 'users', uid, 'assets')),
-    getDocs(collection(db, 'users', uid, 'trades'))
+    getDocs(collection(db, 'assets')),
+    getDocs(collection(db, 'trades'))
   ]);
 
   const hasFirestoreData = !fsAssetsSnap.empty || !fsTradesSnap.empty;
@@ -48,8 +48,8 @@ export async function migrateLocalToFirestore(uid: string): Promise<void> {
   const localTrades = get(trades);
 
   await Promise.all([
-    ...localAssets.map((a) => setDoc(doc(db, 'users', uid, 'assets', a.id), a)),
-    ...localTrades.map((t) => setDoc(doc(db, 'users', uid, 'trades', t.id), t))
+    ...localAssets.map((a) => setDoc(doc(db, 'assets', a.id), a)),
+    ...localTrades.map((t) => setDoc(doc(db, 'trades', t.id), t))
   ]);
 
   migrationPending.set(false);
@@ -68,12 +68,12 @@ async function _attachListeners(uid: string): Promise<void> {
   const { collection, doc, onSnapshot, setDoc, deleteDoc } = await import('firebase/firestore');
 
   // Firestore → Store
-  unsubFsAssets = onSnapshot(collection(db, 'users', uid, 'assets'), (snap) => {
+  unsubFsAssets = onSnapshot(collection(db, 'assets'), (snap) => {
     fsAssets = snap.docs.map((d) => d.data() as Asset);
     assets.set(fsAssets);
   });
 
-  unsubFsTrades = onSnapshot(collection(db, 'users', uid, 'trades'), (snap) => {
+  unsubFsTrades = onSnapshot(collection(db, 'trades'), (snap) => {
     fsTrades = snap.docs.map((d) => d.data() as Trade);
     trades.set(fsTrades);
   });
@@ -88,10 +88,10 @@ async function _attachListeners(uid: string): Promise<void> {
     const currentIds = new Set(current.map((a) => a.id));
 
     for (const asset of current) {
-      setDoc(doc(db, 'users', uid, 'assets', asset.id), asset);
+      setDoc(doc(db, 'assets', asset.id), asset);
     }
     for (const id of prevAssetIds) {
-      if (!currentIds.has(id)) deleteDoc(doc(db, 'users', uid, 'assets', id));
+      if (!currentIds.has(id)) deleteDoc(doc(db, 'assets', id));
     }
     prevAssetIds = currentIds;
   });
@@ -105,10 +105,10 @@ async function _attachListeners(uid: string): Promise<void> {
     const currentIds = new Set(current.map((t) => t.id));
 
     for (const trade of current) {
-      setDoc(doc(db, 'users', uid, 'trades', trade.id), trade);
+      setDoc(doc(db, 'trades', trade.id), trade);
     }
     for (const id of prevTradeIds) {
-      if (!currentIds.has(id)) deleteDoc(doc(db, 'users', uid, 'trades', id));
+      if (!currentIds.has(id)) deleteDoc(doc(db, 'trades', id));
     }
     prevTradeIds = currentIds;
   });
