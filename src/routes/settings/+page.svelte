@@ -167,7 +167,13 @@
 
   <!-- ── Section 1: Firebase config ───────────────────────────────────────── -->
   <section class="border border-border bg-surface p-5 space-y-4">
-    <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Firebase Project Config</h2>
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Firebase Project Config</h2>
+      <a href="https://github.com/m1ndgames/SC-Asset-Manager/blob/main/FIREBASE.md" target="_blank" rel="noopener noreferrer"
+        class="text-xs text-muted hover:text-accent transition-colors uppercase tracking-wider font-semibold">
+        Setup Guide →
+      </a>
+    </div>
 
     <p class="text-xs text-muted leading-relaxed">
       Create a free Firebase project, then paste the snippet from
@@ -345,13 +351,5 @@
     </section>
   {/if}
 
-  <!-- ── Firestore rules reminder ──────────────────────────────────────────── -->
-  <section class="border border-border bg-surface p-5 space-y-3">
-    <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Firestore Security Rules</h2>
-    <p class="text-xs text-muted leading-relaxed">
-      Deploy <span class="text-text font-mono">firestore.rules</span> from the repo root to your Firebase project:
-    </p>
-    <pre class="bg-bg border border-border text-xs text-muted p-3 overflow-x-auto font-mono leading-relaxed">firebase deploy --only firestore:rules</pre>
-  </section>
 
 </div>
