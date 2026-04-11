@@ -108,12 +108,15 @@
   }
 
   function exportCSV() {
+    const synced = !!$firebaseUser;
     const headers = ['Item', 'Qty Sold', 'Buy Price/unit', 'Sell Price/unit', 'Profit', 'Yield', 'Location', 'Date'];
+    if (synced) headers.push('Logged By');
+
     const rows = [...$trades]
       .sort((a, b) => b.soldAt.localeCompare(a.soldAt))
       .map(t => {
         const p = profitOf(t);
-        return [
+        const cells = [
           t.item,
           t.amountSold,
           t.buyPrice ?? '',
@@ -122,7 +125,9 @@
           t.amountSold * t.sellPrice,
           t.sellLocation,
           new Date(t.soldAt).toLocaleString()
-        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+        ];
+        if (synced) cells.push(t.loggedBy ?? '');
+        return cells.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
       });
     const csv = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
