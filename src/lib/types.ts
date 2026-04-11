@@ -1,5 +1,11 @@
 export type Role = 'admin' | 'moderator' | 'user';
 
+export interface ScItem {
+  name: string;
+  /** clothing | armor | weapon | commodity | consumable | paint | ship | item */
+  type: string;
+}
+
 export interface FirebaseConfig {
   apiKey: string;
   authDomain: string;

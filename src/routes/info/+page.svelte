@@ -119,6 +119,36 @@
     </div>
   </section>
 
+  <!-- Section: UEX Corp Integration -->
+  <section class="rsi-panel border border-border">
+    <div class="px-5 py-3 border-b border-border rsi-scanline flex items-center gap-3">
+      <span style="font-family: 'Orbitron', sans-serif;" class="text-accent text-xs font-bold uppercase tracking-widest">
+        05 — UEX Corp Integration
+      </span>
+    </div>
+    <div class="px-5 py-4 space-y-3 text-sm text-text leading-relaxed">
+      <p>
+        Click any asset name to open a detail panel powered by
+        <a href="https://uexcorp.space" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline underline-offset-2 transition-colors">UEX Corp</a>.
+        With a free API key configured in <a href="/settings" class="text-accent hover:underline underline-offset-2 transition-colors">Settings</a> you get:
+      </p>
+      <ul class="space-y-2 ml-2">
+        <li class="flex gap-3">
+          <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+          <span>Live sell prices across all terminals, filterable by star system</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+          <span>Estimated profit per unit and total profit based on your buy price</span>
+        </li>
+        <li class="flex gap-3">
+          <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+          <span>Commodity flags (Illegal, Explosive, Volatile) and a direct link to the UEX item page</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
   <!-- Links: GitHub + Ko-fi -->
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 

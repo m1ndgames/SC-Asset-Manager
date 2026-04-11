@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { firebaseUser, userRole, nickname } from '$lib/stores';
+  import { firebaseUser, userRole, nickname, uexApiKey } from '$lib/stores';
   import { readStoredConfig, validateConfig, initFirebase, isFirebaseReady } from '$lib/firebase';
   import { signIn, signOut, initAuthListener, destroyAuthListener } from '$lib/auth';
   import { startSync, stopSync } from '$lib/firestoreSync';
@@ -303,6 +303,43 @@
       {/if}
     </section>
   {/if}
+
+  <!-- ── Section: UEX Corp API ────────────────────────────────────────────── -->
+  <section class="border border-border bg-surface p-5 space-y-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">UEX Corp API</h2>
+      <a href="https://uexcorp.space/api/apps" target="_blank" rel="noopener noreferrer"
+        class="text-xs text-muted hover:text-accent transition-colors uppercase tracking-wider font-semibold">
+        Get API Key →
+      </a>
+    </div>
+
+    <p class="text-xs text-muted leading-relaxed">
+      Optional. Enables live commodity prices and best sell locations when you click an asset.
+      Create a free app at <span class="text-text">uexcorp.space/api/apps</span> to get a bearer token.
+    </p>
+
+    <div class="flex gap-2 items-center">
+      <input
+        type="password"
+        bind:value={$uexApiKey}
+        placeholder="Paste your UEX bearer token…"
+        class="flex-1 bg-bg border border-border text-text text-xs font-mono px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
+      />
+      {#if $uexApiKey}
+        <button
+          onclick={() => ($uexApiKey = '')}
+          class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
+        >
+          Clear
+        </button>
+      {/if}
+    </div>
+
+    {#if $uexApiKey}
+      <p class="text-xs text-accent font-semibold uppercase tracking-wider">API key set — live prices enabled.</p>
+    {/if}
+  </section>
 
   <!-- ── Section 3: Role management (admin only) ───────────────────────────── -->
   {#if $userRole === 'admin'}

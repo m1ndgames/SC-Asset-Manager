@@ -145,12 +145,12 @@
         Trades
       </a>
       <a
-        href="{base}/howto"
+        href="{base}/info"
         class="text-xs font-semibold uppercase tracking-widest transition-all duration-200 {isActive('/howto')
           ? 'text-accent border-b border-accent pb-0.5'
           : 'text-muted hover:text-text'}"
       >
-        How To
+        Info
       </a>
       <a
         href="{base}/settings"
@@ -158,7 +158,7 @@
           ? 'text-accent border-b border-accent pb-0.5'
           : 'text-muted hover:text-text'}"
       >
-        Sync
+        Settings
         {#if $firebaseUser}
           <span class="absolute -top-1 -right-2 w-1.5 h-1.5 rounded-full bg-accent"></span>
         {/if}
