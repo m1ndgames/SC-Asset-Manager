@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { assets, trades, scItems, scLocations, firebaseUser, nickname, userRole, uexApiKey, uexSecretKey } from '$lib/stores';
+  import { assets, trades, scItems, scLocations, firebaseUser, nickname, userRole, uexApiKey, uexSecretKey, triggerAddAsset } from '$lib/stores';
+  import { onDestroy } from 'svelte';
   import type { Asset, ScItem } from '$lib/types';
   import { findEntity, fetchCommodityPrices, fetchItemPrices, topSellLocations, uexEntityUrl, findTerminal, submitTrade } from '$lib/uex';
   import type { UexEntity, UexPrice } from '$lib/uex';
@@ -15,6 +16,12 @@
     // 'user' role: only own assets (matched by nickname, or legacy assets with no loggedBy)
     return !asset.loggedBy || asset.loggedBy === $nickname;
   }
+
+  // ── Nav bar "Add Asset" trigger ──────────────────────────────────────────────
+  const unsubTrigger = triggerAddAsset.subscribe((val) => {
+    if (val && canAdd) { openAdd(); triggerAddAsset.set(false); }
+  });
+  onDestroy(unsubTrigger);
 
   // ── Modal visibility ────────────────────────────────────────────────────────
   let showAddModal = $state(false);
@@ -54,6 +61,9 @@
   let showItemDropdown = $state(false);
   let showLocDropdown = $state(false);
   let showSellLocDropdown = $state(false);
+
+  // ── Portfolio ─────────────────────────────────────────────────────────────────
+  let portfolioValue = $derived($assets.reduce((sum, a) => sum + a.amount * a.buyPrice, 0));
 
   // ── Table state ───────────────────────────────────────────────────────────────
   let tableFilter = $state('');
@@ -292,13 +302,14 @@
         Inventory
       </h1>
     </div>
-    {#if canAdd}
-      <button
-        onclick={openAdd}
-        class="rsi-panel px-4 py-2 bg-surface-2 border border-border-bright text-accent text-xs font-bold uppercase tracking-widest hover:bg-accent hover:text-bg hover:border-accent transition-all duration-200"
-      >
-        + Add Asset
-      </button>
+    {#if $assets.length > 0 && portfolioValue > 0}
+      <div class="hidden sm:flex items-center gap-2 border border-border bg-surface px-3 py-1.5">
+        <span class="text-xs uppercase tracking-widest text-muted font-semibold">Portfolio</span>
+        <div class="w-px h-3 bg-border"></div>
+        <span style="font-family: 'Orbitron', sans-serif;" class="text-accent font-bold text-xs">
+          {portfolioValue.toLocaleString()} aUEC
+        </span>
+      </div>
     {/if}
   </div>
 

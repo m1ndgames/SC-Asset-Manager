@@ -1,4 +1,4 @@
-import { assets, trades, migrationPending } from './stores';
+import { assets, trades, migrationPending, migrationBackend } from './stores';
 import { getDb } from './firebase';
 import type { Asset, Trade } from './types';
 import { get } from 'svelte/store';
@@ -30,6 +30,7 @@ export async function startSync(uid: string): Promise<void> {
   const hasLocalData = localAssets.length > 0 || localTrades.length > 0;
 
   if (!hasFirestoreData && hasLocalData) {
+    migrationBackend.set('firebase');
     migrationPending.set(true);
     // Don't start real-time sync yet — wait for user to decide
     return;

@@ -4,3 +4,19 @@ services:
     restart: unless-stopped
     ports:
       - "8080:80"
+
+  # Optional: self-hosted PocketBase backend
+  # Uncomment the block below to run PocketBase alongside the app.
+  # After first start, visit http://your-host:8090/_/ to create the admin account
+  # and set up the required collections (see POCKETBASE.md).
+  #
+  # pocketbase:
+  #   image: ghcr.io/muchobien/pocketbase:latest
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8090:8090"
+  #   volumes:
+  #     - pocketbase_data:/pb_data
+
+# volumes:
+#   pocketbase_data:
