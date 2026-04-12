@@ -168,6 +168,18 @@
     </div>
   </section>
 
+  <!-- Section: Brand -->
+  <section class="rsi-panel border border-border">
+    <div class="px-5 py-3 border-b border-border rsi-scanline flex items-center gap-3">
+      <span style="font-family: 'Orbitron', sans-serif;" class="text-accent text-xs font-bold uppercase tracking-widest">
+        06 — SCAM? Couldn't you come up with a better name?
+      </span>
+    </div>
+    <div class="px-5 py-4 space-y-4 text-sm text-text leading-relaxed">
+      <p>I didn't even notice it initially... guess we can all be happy I didn't call it 'Star Citizen Asset Tracker'.</p>
+    </div>
+  </section>
+
   <!-- Links: GitHub + Ko-fi -->
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
