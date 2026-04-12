@@ -41,5 +41,15 @@ export const scLocations = writable<string[]>([]);
 export const firebaseUser = writable<User | null>(null);
 export const userRole = writable<Role | null>(null);
 
-// Set to true when user first signs in with local data but empty Firestore
+// PocketBase — URL persisted; user model not persisted
+export const pbUrl = localStore<string>('sc_pb_url', '');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const pbUser = writable<Record<string, any> | null>(null);
+
+// Pulsed to true by the nav bar "Add Asset" button; assets page listens and opens the modal
+export const triggerAddAsset = writable<boolean>(false);
+
+// Set to true when user first signs in with local data but the remote backend is empty
 export const migrationPending = writable<boolean>(false);
+// Which backend triggered the migration prompt
+export const migrationBackend = writable<'firebase' | 'pocketbase' | null>(null);

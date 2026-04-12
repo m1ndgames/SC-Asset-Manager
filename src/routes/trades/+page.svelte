@@ -79,7 +79,6 @@
         if (sortCol === 'item')       { av = a.item;                       bv = b.item; }
         else if (sortCol === 'qty')   { av = a.amountSold;                 bv = b.amountSold; }
         else if (sortCol === 'sell')  { av = a.sellPrice;                  bv = b.sellPrice; }
-        else if (sortCol === 'yield') { av = a.amountSold * a.sellPrice;   bv = b.amountSold * b.sellPrice; }
         else if (sortCol === 'profit') {
           av = (a.buyPrice ?? 0) > 0 ? (a.sellPrice - (a.buyPrice ?? 0)) * a.amountSold : -Infinity;
           bv = (b.buyPrice ?? 0) > 0 ? (b.sellPrice - (b.buyPrice ?? 0)) * b.amountSold : -Infinity;
@@ -120,7 +119,6 @@
     return 'text-muted';
   }
 
-  let totalYield = $derived(displayTrades.reduce((sum, t) => sum + t.amountSold * t.sellPrice, 0));
   let totalProfit = $derived(displayTrades.reduce((sum, t) => {
     const p = profitOf(t);
     return p !== null ? sum + p : sum;
@@ -155,37 +153,6 @@
     trades.update((list) => list.filter((t) => t.id !== id));
   }
 
-  function exportCSV() {
-    const synced = !!$firebaseUser;
-    const headers = ['Item', 'Qty Sold', 'Buy Price/unit', 'Sell Price/unit', 'Profit', 'Yield', 'Location', 'Date'];
-    if (synced) headers.push('Logged By');
-
-    const rows = [...$trades]
-      .sort((a, b) => b.soldAt.localeCompare(a.soldAt))
-      .map(t => {
-        const p = profitOf(t);
-        const cells = [
-          t.item,
-          t.amountSold,
-          t.buyPrice ?? '',
-          t.sellPrice,
-          p !== null ? p : '',
-          t.amountSold * t.sellPrice,
-          t.sellLocation,
-          new Date(t.soldAt).toLocaleString()
-        ];
-        if (synced) cells.push(t.loggedBy ?? '');
-        return cells.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
-      });
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sc-trades-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 </script>
 
 <div class="space-y-5">
@@ -208,13 +175,6 @@
             </span>
           </div>
         {/if}
-        <button
-          onclick={exportCSV}
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-accent hover:text-accent transition-all duration-200"
-        >
-          <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          <span class="hidden sm:inline">CSV</span>
-        </button>
       </div>
     {/if}
   </div>
@@ -256,7 +216,6 @@
               <th onclick={() => toggleSort('item')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Item{si('item')}</th>
               <th onclick={() => toggleSort('qty')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Qty{si('qty')}</th>
               <th onclick={() => toggleSort('sell')} class="hidden sm:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Sell Price{si('sell')}</th>
-              <th onclick={() => toggleSort('yield')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Yield{si('yield')}</th>
               <th onclick={() => toggleSort('profit')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Profit{si('profit')}</th>
               <th onclick={() => toggleSort('location')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Location{si('location')}</th>
               <th onclick={() => toggleSort('soldAt')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Date{si('soldAt')}</th>
@@ -278,9 +237,6 @@
                 </td>
                 <td class="hidden sm:table-cell px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
                   {trade.sellPrice > 0 ? uec(trade.sellPrice) : '—'}
-                </td>
-                <td class="px-4 py-3 text-accent font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
-                  {trade.sellPrice > 0 ? uec(trade.amountSold * trade.sellPrice) : '—'}
                 </td>
                 <td class="px-4 py-3 font-bold {profitClass(profit)}" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
                   {#if profit !== null}
