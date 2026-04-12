@@ -7,6 +7,11 @@
   import { setUserRole, getAllRoles, getAllProfiles } from '$lib/roleManager';
   import type { FirebaseConfig, Role } from '$lib/types';
 
+  type Section = 'general' | 'backend';
+  type BackendProvider = 'local' | 'firebase';
+  let activeSection = $state<Section>('general');
+  let backendProvider = $state<BackendProvider>('local');
+
   // ── Config section ─────────────────────────────────────────────────────────
   let configRaw = $state('');
   let configError = $state('');
@@ -21,7 +26,7 @@
 
   // ── Role management section ───────────────────────────────────────────────
   let roleMap = $state<Map<string, Role>>(new Map());
-  let profileMap = $state<Map<string, string>>(new Map()); // uid → email
+  let profileMap = $state<Map<string, string>>(new Map());
   let roleLoading = $state(false);
   let roleError = $state('');
   let roleSuccess = $state('');
@@ -31,10 +36,10 @@
     if (stored) {
       configRaw = JSON.stringify(stored, null, 2);
       hasConfig = true;
+      backendProvider = 'firebase';
     }
   });
 
-  // Reset role/profile maps on sign-out so they reload fresh after the next sign-in
   $effect(() => {
     if (!$firebaseUser) {
       roleMap = new Map();
@@ -42,7 +47,6 @@
     }
   });
 
-  // Load roles once when admin is confirmed and maps are empty
   $effect(() => {
     if ($userRole === 'admin' && roleMap.size === 0 && profileMap.size === 0 && !roleLoading) {
       loadRoles();
@@ -55,12 +59,10 @@
     configSaved = false;
     let parsed: unknown;
     try {
-      // Strip JS variable declaration and trailing semicolon
       const cleaned = configRaw
         .replace(/^\s*const\s+\w+\s*=\s*/, '')
         .replace(/;\s*$/, '')
         .trim();
-      // Try raw JSON first, then fall back to JS object literal (unquoted keys)
       try {
         parsed = JSON.parse(cleaned);
       } catch {
@@ -79,8 +81,6 @@
     await initFirebase(parsed as FirebaseConfig);
     hasConfig = true;
     configSaved = true;
-
-    // Wire up auth listener now that Firebase is ready
     await initAuthListener(
       async (uid) => { await startSync(uid); },
       () => { stopSync(); }
@@ -155,272 +155,344 @@
   };
 </script>
 
-<div class="max-w-2xl mx-auto space-y-8 py-2">
+<div class="max-w-4xl mx-auto py-2">
 
   <!-- Page header -->
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-3 mb-8">
     <div class="w-1 h-6 bg-accent opacity-80"></div>
     <h1 style="font-family: 'Orbitron', sans-serif;" class="text-accent text-sm font-bold tracking-widest uppercase">
-      Firebase Sync
+      Settings
     </h1>
-    {#if $firebaseUser}
-      <span class="ml-auto flex items-center gap-1.5 text-xs text-accent font-semibold uppercase tracking-wider">
-        <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
-        Connected
-      </span>
-    {:else}
-      <span class="ml-auto text-xs text-muted font-semibold uppercase tracking-wider">Standalone</span>
-    {/if}
   </div>
 
-  <!-- ── Section 1: Firebase config ───────────────────────────────────────── -->
-  <section class="border border-border bg-surface p-5 space-y-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Firebase Project Config</h2>
-      <a href="https://github.com/m1ndgames/SC-Asset-Manager/blob/main/FIREBASE.md" target="_blank" rel="noopener noreferrer"
-        class="text-xs text-muted hover:text-accent transition-colors uppercase tracking-wider font-semibold">
-        Setup Guide →
-      </a>
-    </div>
+  <div class="flex gap-8">
 
-    <p class="text-xs text-muted leading-relaxed">
-      Create a free Firebase project, then paste the snippet from
-      <span class="text-text">Project Settings → Your apps → SDK setup</span>.
-      The full <span class="text-text font-mono">const firebaseConfig = {'{ … }'}</span> block or a plain JSON object both work.
-      Everyone sharing this config syncs to the same Firestore database.
-    </p>
+    <!-- ── Sidebar navigation ───────────────────────────────────────────────── -->
+    <nav class="w-44 shrink-0 space-y-0.5">
 
-    <textarea
-      bind:value={configRaw}
-      rows="8"
-      placeholder={'// Paste the Firebase snippet or raw JSON object\nconst firebaseConfig = {\n  apiKey: "...",\n  authDomain: "...",\n  ...\n};'}
-      class="w-full bg-bg border border-border text-text text-xs font-mono p-3 resize-none focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
-    ></textarea>
-
-    {#if configError}
-      <p class="text-xs text-red-400 font-semibold">{configError}</p>
-    {/if}
-    {#if configSaved}
-      <p class="text-xs text-accent font-semibold uppercase tracking-wider">Config saved — Firebase ready.</p>
-    {/if}
-
-    <div class="flex gap-2">
+      <!-- General -->
       <button
-        onclick={saveConfig}
-        class="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider border border-accent text-accent hover:bg-accent hover:text-bg transition-all duration-200"
+        onclick={() => (activeSection = 'general')}
+        class="w-full text-left px-3 py-2 text-xs font-semibold uppercase tracking-widest transition-colors
+          {activeSection === 'general'
+            ? 'text-accent border-l-2 border-accent bg-surface pl-[10px]'
+            : 'text-muted hover:text-text border-l-2 border-transparent pl-[10px]'}"
       >
-        Save & Connect
+        General
       </button>
-      {#if hasConfig}
-        <button
-          onclick={disconnect}
-          class="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
-        >
-          Disconnect
-        </button>
-      {/if}
-    </div>
-  </section>
 
-  <!-- ── Section 2: Authentication ────────────────────────────────────────── -->
-  {#if hasConfig}
-    <section class="border border-border bg-surface p-5 space-y-4">
-      <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Authentication</h2>
+      <!-- Backend -->
+      <button
+        onclick={() => (activeSection = 'backend')}
+        class="w-full text-left px-3 py-2 text-xs font-semibold uppercase tracking-widest transition-colors
+          {activeSection === 'backend'
+            ? 'text-accent border-l-2 border-accent bg-surface pl-[10px]'
+            : 'text-muted hover:text-text border-l-2 border-transparent pl-[10px]'}"
+      >
+        Backend
+        {#if $firebaseUser}
+          <span class="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-accent align-middle animate-pulse"></span>
+        {/if}
+      </button>
 
-      {#if $firebaseUser}
-        <!-- Signed in -->
-        <div class="space-y-3">
-          <div class="flex items-center gap-3">
-            <div class="flex flex-col gap-0.5">
-              <span class="text-text text-sm font-semibold">{$firebaseUser.email}</span>
-              <span class="text-muted text-xs font-mono">{$firebaseUser.uid}</span>
-            </div>
-            <div class="ml-auto">
-              <span class="px-2 py-0.5 border text-xs font-bold uppercase tracking-wider {$userRole ? ROLE_COLORS[$userRole] : 'text-muted border-border animate-pulse'}">
-                {$userRole ?? 'loading…'}
-              </span>
-            </div>
+    </nav>
+
+    <!-- ── Content area ──────────────────────────────────────────────────────── -->
+    <div class="flex-1 min-w-0 space-y-6">
+
+      <!-- ══ GENERAL ══════════════════════════════════════════════════════════ -->
+      {#if activeSection === 'general'}
+
+        <section class="border border-border bg-surface p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">UEX Corp API</h2>
+            <a href="https://uexcorp.space/api/apps" target="_blank" rel="noopener noreferrer"
+              class="text-xs text-muted hover:text-accent transition-colors uppercase tracking-wider font-semibold">
+              uexcorp.space →
+            </a>
           </div>
-          <!-- Nickname -->
-          <div class="space-y-2 pt-1">
-            <label class="block text-xs uppercase tracking-widest text-muted font-semibold">
-              Nickname <span class="text-red-500">*</span>
-            </label>
-            <div class="flex gap-2">
+
+          <p class="text-xs text-muted leading-relaxed">
+            Optional. The <span class="text-text">App Token</span> enables live commodity prices and best sell locations.
+            The <span class="text-text">Personal Token</span> enables pushing buy/sell orders to your UEX trade log.
+            Both are available from your UEX profile.
+          </p>
+
+          <!-- App token -->
+          <div class="space-y-1.5">
+            <label class="block text-xs uppercase tracking-widest text-muted font-semibold">App Token</label>
+            <div class="flex gap-2 items-center">
               <input
-                type="text"
-                bind:value={$nickname}
-                maxlength="32"
-                placeholder="e.g. VaporWolf"
-                class="flex-1 bg-bg border border-border text-text text-sm px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40 {!$nickname ? 'border-yellow-700' : ''}"
+                type="password"
+                bind:value={$uexApiKey}
+                placeholder="Bearer token from uexcorp.space/api/apps…"
+                class="flex-1 bg-bg border border-border text-text text-xs font-mono px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
               />
+              {#if $uexApiKey}
+                <button
+                  onclick={() => ($uexApiKey = '')}
+                  class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
+                >
+                  Clear
+                </button>
+              {/if}
             </div>
-            <p class="text-xs text-muted">Shown on assets and trades you log. Never your email.</p>
+            {#if $uexApiKey}
+              <p class="text-xs text-accent font-semibold uppercase tracking-wider">Set — live prices enabled.</p>
+            {/if}
           </div>
 
-          <button
-            onclick={handleSignOut}
-            class="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
-          >
-            Sign Out
-          </button>
-        </div>
-      {:else}
-        <!-- Sign in form -->
-        <div class="space-y-3">
-          <div class="space-y-2">
-            <label class="block text-xs uppercase tracking-widest text-muted font-semibold">Email</label>
-            <input
-              type="email"
-              bind:value={email}
-              placeholder="you@example.com"
-              class="w-full bg-bg border border-border text-text text-sm px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
-            />
+          <!-- Personal token -->
+          <div class="space-y-1.5">
+            <label class="block text-xs uppercase tracking-widest text-muted font-semibold">Personal Token</label>
+            <div class="flex gap-2 items-center">
+              <input
+                type="password"
+                bind:value={$uexSecretKey}
+                placeholder="Personal token from your UEX profile…"
+                class="flex-1 bg-bg border border-border text-text text-xs font-mono px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
+              />
+              {#if $uexSecretKey}
+                <button
+                  onclick={() => ($uexSecretKey = '')}
+                  class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
+                >
+                  Clear
+                </button>
+              {/if}
+            </div>
+            {#if $uexSecretKey}
+              <p class="text-xs text-accent font-semibold uppercase tracking-wider">Set — trade log push enabled.</p>
+            {/if}
           </div>
-          <div class="space-y-2">
-            <label class="block text-xs uppercase tracking-widest text-muted font-semibold">Password</label>
-            <input
-              type="password"
-              bind:value={password}
-              placeholder="••••••••"
-              onkeydown={(e) => e.key === 'Enter' && handleSignIn()}
-              class="w-full bg-bg border border-border text-text text-sm px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
-            />
+        </section>
+
+      {/if}
+
+      <!-- ══ BACKEND ══════════════════════════════════════════════════════════ -->
+      {#if activeSection === 'backend'}
+
+        <!-- Provider selector -->
+        <section class="border border-border bg-surface p-5 space-y-3">
+          <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Provider</h2>
+          <div class="flex items-center gap-4">
+            <select
+              bind:value={backendProvider}
+              class="bg-bg border border-border text-text text-xs px-3 py-2 focus:outline-none focus:border-accent transition-colors"
+            >
+              <option value="local">Local Browser</option>
+              <option value="firebase">Firebase</option>
+            </select>
+            {#if backendProvider === 'local'}
+              <span class="text-xs text-muted font-semibold uppercase tracking-wider">Active</span>
+            {:else if $firebaseUser}
+              <span class="flex items-center gap-1.5 text-xs text-accent font-semibold uppercase tracking-wider">
+                <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
+                Connected
+              </span>
+            {:else}
+              <span class="text-xs text-muted font-semibold uppercase tracking-wider">Not connected</span>
+            {/if}
+          </div>
+        </section>
+
+        {#if backendProvider === 'local'}
+          <p class="text-xs text-muted leading-relaxed">
+            All data is stored in your browser's <span class="text-text">localStorage</span>. Nothing is sent to any server.
+            Use the <span class="text-text">Export / Import</span> buttons in the nav bar to back up or transfer your data.
+          </p>
+          {#if hasConfig}
+            <p class="text-xs text-yellow-500 font-semibold">
+              Firebase sync is still active. Switch to <span class="underline underline-offset-2 cursor-pointer" role="button" tabindex="0" onclick={() => (backendProvider = 'firebase')} onkeydown={(e) => e.key === 'Enter' && (backendProvider = 'firebase')}>Firebase</span> above to disconnect.
+            </p>
+          {/if}
+        {/if}
+
+        {#if backendProvider === 'firebase'}
+
+        <!-- Project config -->
+        <section class="border border-border bg-surface p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Project Config</h2>
+            <a href="https://github.com/m1ndgames/SC-Asset-Manager/blob/main/FIREBASE.md" target="_blank" rel="noopener noreferrer"
+              class="text-xs text-muted hover:text-accent transition-colors uppercase tracking-wider font-semibold">
+              Setup Guide →
+            </a>
           </div>
 
-          {#if authError}
-            <p class="text-xs text-red-400 font-semibold">{authError}</p>
+          <p class="text-xs text-muted leading-relaxed">
+            Create a free Firebase project, then paste the snippet from
+            <span class="text-text">Project Settings → Your apps → SDK setup</span>.
+            The full <span class="text-text font-mono">const firebaseConfig = {'{ … }'}</span> block or a plain JSON object both work.
+            Everyone sharing this config syncs to the same Firestore database.
+          </p>
+
+          <textarea
+            bind:value={configRaw}
+            rows="8"
+            placeholder={'// Paste the Firebase snippet or raw JSON object\nconst firebaseConfig = {\n  apiKey: "...",\n  authDomain: "...",\n  ...\n};'}
+            class="w-full bg-bg border border-border text-text text-xs font-mono p-3 resize-none focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
+          ></textarea>
+
+          {#if configError}
+            <p class="text-xs text-red-400 font-semibold">{configError}</p>
+          {/if}
+          {#if configSaved}
+            <p class="text-xs text-accent font-semibold uppercase tracking-wider">Config saved — Firebase ready.</p>
           {/if}
 
-          <button
-            onclick={handleSignIn}
-            disabled={authLoading}
-            class="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider border border-accent text-accent hover:bg-accent hover:text-bg transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {authLoading ? 'Signing in…' : 'Sign In'}
-          </button>
-        </div>
-      {/if}
-    </section>
-  {/if}
-
-  <!-- ── Section: UEX Corp API ────────────────────────────────────────────── -->
-  <section class="border border-border bg-surface p-5 space-y-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">UEX Corp API</h2>
-      <a href="https://uexcorp.space/api/apps" target="_blank" rel="noopener noreferrer"
-        class="text-xs text-muted hover:text-accent transition-colors uppercase tracking-wider font-semibold">
-        uexcorp.space →
-      </a>
-    </div>
-
-    <p class="text-xs text-muted leading-relaxed">
-      Optional. The <span class="text-text">App Token</span> enables live commodity prices and best sell locations.
-      The <span class="text-text">Personal Token</span> enables pushing buy/sell orders to your UEX trade log.
-      Both are available from your UEX profile.
-    </p>
-
-    <!-- App token (bearer) -->
-    <div class="space-y-1.5">
-      <label class="block text-xs uppercase tracking-widest text-muted font-semibold">App Token</label>
-      <div class="flex gap-2 items-center">
-        <input
-          type="password"
-          bind:value={$uexApiKey}
-          placeholder="Bearer token from uexcorp.space/api/apps…"
-          class="flex-1 bg-bg border border-border text-text text-xs font-mono px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
-        />
-        {#if $uexApiKey}
-          <button
-            onclick={() => ($uexApiKey = '')}
-            class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
-          >
-            Clear
-          </button>
-        {/if}
-      </div>
-      {#if $uexApiKey}
-        <p class="text-xs text-accent font-semibold uppercase tracking-wider">Set — live prices enabled.</p>
-      {/if}
-    </div>
-
-    <!-- Personal secret key -->
-    <div class="space-y-1.5">
-      <label class="block text-xs uppercase tracking-widest text-muted font-semibold">Personal Token</label>
-      <div class="flex gap-2 items-center">
-        <input
-          type="password"
-          bind:value={$uexSecretKey}
-          placeholder="Personal token from your UEX profile…"
-          class="flex-1 bg-bg border border-border text-text text-xs font-mono px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
-        />
-        {#if $uexSecretKey}
-          <button
-            onclick={() => ($uexSecretKey = '')}
-            class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
-          >
-            Clear
-          </button>
-        {/if}
-      </div>
-      {#if $uexSecretKey}
-        <p class="text-xs text-accent font-semibold uppercase tracking-wider">Set — trade log push enabled.</p>
-      {/if}
-    </div>
-  </section>
-
-  <!-- ── Section 3: Role management (admin only) ───────────────────────────── -->
-  {#if $userRole === 'admin'}
-    <section class="border border-border bg-surface p-5 space-y-4">
-      <div class="flex items-center gap-3">
-        <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Role Management</h2>
-        <button
-          onclick={loadRoles}
-          class="ml-auto text-xs text-muted hover:text-accent transition-colors uppercase tracking-wider font-semibold"
-        >
-          Refresh
-        </button>
-      </div>
-
-      <p class="text-xs text-muted leading-relaxed">
-        User IDs are visible in the <span class="text-text">Firebase Console → Authentication → Users</span>.
-        The first admin must be seeded manually in Firestore at <span class="text-text font-mono">/roles/{'{uid}'}</span>.
-      </p>
-
-      {#if roleError}
-        <p class="text-xs text-red-400 font-semibold">{roleError}</p>
-      {/if}
-      {#if roleSuccess}
-        <p class="text-xs text-accent font-semibold uppercase tracking-wider">{roleSuccess}</p>
-      {/if}
-
-      {#if roleLoading}
-        <p class="text-xs text-muted uppercase tracking-wider animate-pulse">Loading…</p>
-      {:else if profileMap.size === 0}
-        <p class="text-xs text-muted">No users found. Users appear here after their first sign-in.</p>
-      {:else}
-        <div class="space-y-2">
-          {#each [...profileMap.entries()] as [uid, email]}
-            <div class="flex items-center gap-3 border border-border px-3 py-2">
-              <div class="flex flex-col gap-0.5 flex-1 min-w-0">
-                <span class="text-xs text-text font-semibold truncate">{email}</span>
-                <span class="text-xs font-mono text-muted/50 truncate">{uid}</span>
-              </div>
-              <select
-                value={roleMap.get(uid) ?? 'user'}
-                onchange={(e) => updateRole(uid, (e.target as HTMLSelectElement).value as Role)}
-                class="bg-bg border border-border text-text text-xs px-2 py-1 focus:outline-none focus:border-accent transition-colors shrink-0"
+          <div class="flex gap-2">
+            <button
+              onclick={saveConfig}
+              class="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider border border-accent text-accent hover:bg-accent hover:text-bg transition-all duration-200"
+            >
+              Save & Connect
+            </button>
+            {#if hasConfig}
+              <button
+                onclick={disconnect}
+                class="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
               >
-                <option value="user">User</option>
-                <option value="moderator">Moderator</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </section>
-  {/if}
+                Disconnect
+              </button>
+            {/if}
+          </div>
+        </section>
 
+        <!-- Authentication -->
+        {#if hasConfig}
+          <section class="border border-border bg-surface p-5 space-y-4">
+            <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Authentication</h2>
+
+            {#if $firebaseUser}
+              <div class="space-y-3">
+                <div class="flex items-center gap-3">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-text text-sm font-semibold">{$firebaseUser.email}</span>
+                    <span class="text-muted text-xs font-mono">{$firebaseUser.uid}</span>
+                  </div>
+                  <div class="ml-auto">
+                    <span class="px-2 py-0.5 border text-xs font-bold uppercase tracking-wider {$userRole ? ROLE_COLORS[$userRole] : 'text-muted border-border animate-pulse'}">
+                      {$userRole ?? 'loading…'}
+                    </span>
+                  </div>
+                </div>
+                <div class="space-y-2 pt-1">
+                  <label class="block text-xs uppercase tracking-widest text-muted font-semibold">
+                    Nickname <span class="text-red-500">*</span>
+                  </label>
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      bind:value={$nickname}
+                      maxlength="32"
+                      placeholder="e.g. VaporWolf"
+                      class="flex-1 bg-bg border border-border text-text text-sm px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40 {!$nickname ? 'border-yellow-700' : ''}"
+                    />
+                  </div>
+                  <p class="text-xs text-muted">Shown on assets and trades you log. Never your email.</p>
+                </div>
+                <button
+                  onclick={handleSignOut}
+                  class="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
+                >
+                  Sign Out
+                </button>
+              </div>
+            {:else}
+              <div class="space-y-3">
+                <div class="space-y-2">
+                  <label class="block text-xs uppercase tracking-widest text-muted font-semibold">Email</label>
+                  <input
+                    type="email"
+                    bind:value={email}
+                    placeholder="you@example.com"
+                    class="w-full bg-bg border border-border text-text text-sm px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label class="block text-xs uppercase tracking-widest text-muted font-semibold">Password</label>
+                  <input
+                    type="password"
+                    bind:value={password}
+                    placeholder="••••••••"
+                    onkeydown={(e) => e.key === 'Enter' && handleSignIn()}
+                    class="w-full bg-bg border border-border text-text text-sm px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
+                  />
+                </div>
+                {#if authError}
+                  <p class="text-xs text-red-400 font-semibold">{authError}</p>
+                {/if}
+                <button
+                  onclick={handleSignIn}
+                  disabled={authLoading}
+                  class="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider border border-accent text-accent hover:bg-accent hover:text-bg transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {authLoading ? 'Signing in…' : 'Sign In'}
+                </button>
+              </div>
+            {/if}
+          </section>
+        {/if}
+
+        <!-- Role management (admin only, Firebase only) -->
+        {#if $userRole === 'admin' && backendProvider === 'firebase'}
+          <section class="border border-border bg-surface p-5 space-y-4">
+            <div class="flex items-center gap-3">
+              <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">Role Management</h2>
+              <button
+                onclick={loadRoles}
+                class="ml-auto text-xs text-muted hover:text-accent transition-colors uppercase tracking-wider font-semibold"
+              >
+                Refresh
+              </button>
+            </div>
+
+            <p class="text-xs text-muted leading-relaxed">
+              User IDs are visible in the <span class="text-text">Firebase Console → Authentication → Users</span>.
+              The first admin must be seeded manually in Firestore at <span class="text-text font-mono">/roles/{'{uid}'}</span>.
+            </p>
+
+            {#if roleError}
+              <p class="text-xs text-red-400 font-semibold">{roleError}</p>
+            {/if}
+            {#if roleSuccess}
+              <p class="text-xs text-accent font-semibold uppercase tracking-wider">{roleSuccess}</p>
+            {/if}
+
+            {#if roleLoading}
+              <p class="text-xs text-muted uppercase tracking-wider animate-pulse">Loading…</p>
+            {:else if profileMap.size === 0}
+              <p class="text-xs text-muted">No users found. Users appear here after their first sign-in.</p>
+            {:else}
+              <div class="space-y-2">
+                {#each [...profileMap.entries()] as [uid, email]}
+                  <div class="flex items-center gap-3 border border-border px-3 py-2">
+                    <div class="flex flex-col gap-0.5 flex-1 min-w-0">
+                      <span class="text-xs text-text font-semibold truncate">{email}</span>
+                      <span class="text-xs font-mono text-muted/50 truncate">{uid}</span>
+                    </div>
+                    <select
+                      value={roleMap.get(uid) ?? 'user'}
+                      onchange={(e) => updateRole(uid, (e.target as HTMLSelectElement).value as Role)}
+                      class="bg-bg border border-border text-text text-xs px-2 py-1 focus:outline-none focus:border-accent transition-colors shrink-0"
+                    >
+                      <option value="user">User</option>
+                      <option value="moderator">Moderator</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </section>
+        {/if}
+
+        {/if}<!-- end backendProvider === 'firebase' -->
+
+      {/if}<!-- end activeSection === 'backend' -->
+
+    </div>
+  </div>
 
 </div>
