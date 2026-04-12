@@ -9,7 +9,14 @@ const { default: adapter } = isCF
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   kit: {
-    adapter: isCF ? adapter() : adapter({ fallback: 'index.html' })
+    adapter: isCF ? adapter() : adapter({ fallback: 'index.html' }),
+    prerender: {
+      handleHttpError: ({ path, message }) => {
+        // Ignore missing favicon — no favicon file in this project
+        if (path === '/favicon.png') return;
+        throw new Error(message);
+      }
+    }
   }
 };
 
