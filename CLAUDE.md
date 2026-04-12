@@ -12,7 +12,7 @@ SC Asset Manager is a browser-based Star Citizen commodity tracker. It is a full
 
 - **SvelteKit 2** with **Svelte 5** — use runes syntax throughout (`$state`, `$derived`, `$props`); stores are still `svelte/store` writables accessed via `$storeName` in templates
 - **Tailwind CSS v4** via `@tailwindcss/vite` — no `tailwind.config.js`; import in `src/app.css` with `@import "tailwindcss"`
-- **`@sveltejs/adapter-static`** with `fallback: 'index.html'` for SPA routing
+- **Dual adapter** — `@sveltejs/adapter-cloudflare` when `CF_PAGES=1` (Cloudflare Pages deploy), `@sveltejs/adapter-static` with `fallback: 'index.html'` otherwise (Docker / local dev)
 - **SSR disabled globally** — `src/routes/+layout.ts` exports `ssr = false`; never use server-side APIs
 - **TypeScript** throughout
 
@@ -93,7 +93,7 @@ Client for the [UEX Corp API v2](https://uexcorp.space/api/documentation/) with 
 
 ### Base path
 
-`svelte.config.js` reads `process.env.BASE_PATH` (defaults to `""`). The GitHub Pages workflow sets it to `/SC-Asset-Manager`. All static fetches in `+layout.svelte` use the `base` import from `$app/paths` — keep this consistent when adding new static fetches.
+`svelte.config.js` checks `process.env.CF_PAGES` to select the adapter. The Cloudflare deploy workflow sets `CF_PAGES=1`; Docker and local dev leave it unset. There is no `BASE_PATH` — the app is served from the root of `https://s-c-a-m.me`.
 
 ## Commands
 
@@ -116,7 +116,7 @@ docker compose up
 
 | Target | Trigger | Config |
 |---|---|---|
-| GitHub Pages | push to `main` | `.github/workflows/pages.yml`, `BASE_PATH=/SC-Asset-Manager` |
+| Cloudflare Pages | push to `main` | `.github/workflows/pages.yml`, `CF_PAGES=1`, deploys to `s-c-a-m.me` |
 | Docker (ghcr.io) | push to `main` or `v*` tag | `.github/workflows/docker.yml`, multi-stage Dockerfile |
 
 End users self-host via `docker-compose.yml` (port 8080) or use the Pages URL.
