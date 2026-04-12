@@ -20,11 +20,11 @@ If this tool saves you time, consider buying me a coffee: **https://ko-fi.com/m1
 
 ## Hosting options
 
-### GitHub Pages (free, no setup)
+### Hosted (free, no setup)
 
-The app is deployed automatically to GitHub Pages on every push to `main`:
+The app is deployed automatically to Cloudflare Pages on every push to `main`:
 
-**https://m1ndgames.github.io/SC-Asset-Manager**
+**https://s-c-a-m.me**
 
 ### Self-host with Docker
 
@@ -40,7 +40,7 @@ By default all data is stored in your browser's `localStorage` — nothing is se
 
 ### Switching machines
 
-Use the **Export Data** button in the nav bar to download a JSON backup of your assets and trades. On the new machine, click **Import Data** to restore.
+Use the **Export Data** button in **Settings → Export** to download a JSON backup of your assets and trades. On the new machine, click **Import Data** to restore.
 
 ### UEX Corp live prices & trade log
 
