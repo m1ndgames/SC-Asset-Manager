@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { trades, scLocations, firebaseUser, nickname, userRole } from '$lib/stores';
+  import { trades, scLocations, scItems, firebaseUser, nickname, userRole, uexApiKey, uexSecretKey } from '$lib/stores';
   import type { Trade } from '$lib/types';
+  import { findEntity, findTerminal, submitTrade } from '$lib/uex';
 
   // ── Permissions ──────────────────────────────────────────────────────────────
   let canManage = $derived(!$firebaseUser || $userRole === 'moderator' || $userRole === 'admin');
@@ -8,6 +9,48 @@
   let showEditModal = $state(false);
   let editTarget = $state<Trade | null>(null);
   let formError = $state('');
+
+  // ── Item type lookup (for UEX push visibility) ────────────────────────────────
+  let scItemMap = $derived(new Map($scItems.map(i => [i.name.toLowerCase(), i])));
+  function scItemType(name: string): string {
+    return scItemMap.get(name.toLowerCase())?.type ?? '';
+  }
+
+  // ── UEX trade push ────────────────────────────────────────────────────────────
+  type PushState = { status: 'loading' | 'success' | 'error'; msg?: string };
+  let uexPush = $state<Record<string, PushState>>({});
+
+  async function pushSellToUex(trade: Trade) {
+    if (trade.uexSellId && !confirm(`Already logged to UEX as trade #${trade.uexSellId}. Push again?`)) return;
+    uexPush = { ...uexPush, [trade.id]: { status: 'loading' } };
+    try {
+      const entity = await findEntity($uexApiKey, trade.item, scItemType(trade.item));
+      if (!entity || entity.type !== 'commodity') throw new Error('Not found as a UEX commodity');
+      const terminal = await findTerminal($uexApiKey, trade.sellLocation);
+      if (!terminal) throw new Error(`Terminal not found: "${trade.sellLocation}"`);
+      const uexSellId = await submitTrade($uexApiKey, $uexSecretKey, {
+        id_terminal: terminal.id,
+        id_commodity: entity.id,
+        operation: 'sell',
+        scu: trade.amountSold,
+        price: trade.sellPrice,
+      });
+      trades.update(list => list.map(t => t.id === trade.id ? { ...t, uexSellId } : t));
+      const { [trade.id]: _, ...rest } = uexPush;
+      uexPush = rest;
+    } catch (e) {
+      uexPush = { ...uexPush, [trade.id]: { status: 'error', msg: e instanceof Error ? e.message : 'Failed' } };
+    }
+  }
+
+  // ── Buy order detail popup ────────────────────────────────────────────────────
+  let showBuyDetailModal = $state(false);
+  let buyDetailTrade = $state<Trade | null>(null);
+
+  function openBuyDetail(trade: Trade) {
+    buyDetailTrade = trade;
+    showBuyDetailModal = true;
+  }
 
   let fAmountSold = $state<number | ''>(0);
   let fSellPrice = $state<number | ''>(0);
@@ -252,6 +295,37 @@
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-2">
+                    <button
+                      onclick={() => openBuyDetail(trade)}
+                      title="Buy order details"
+                      class="px-2 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-accent hover:text-accent transition-all duration-150"
+                    >
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </button>
+                    {#if $uexSecretKey && scItemType(trade.item) === 'commodity' && trade.sellLocation && (!trade.loggedBy || trade.loggedBy === $nickname)}
+                      {@const ps = uexPush[trade.id]}
+                      {#if ps?.status === 'loading'}
+                        <span class="px-2 py-1 text-xs text-muted border border-border animate-pulse uppercase tracking-wider">…</span>
+                      {:else if ps?.status === 'error'}
+                        <button
+                          onclick={() => { const { [trade.id]: _, ...rest } = uexPush; uexPush = rest; }}
+                          title={ps.msg}
+                          class="px-2 py-1 text-xs text-red-400 border border-red-800 uppercase tracking-wider font-semibold hover:bg-red-950 transition-colors"
+                        >✕</button>
+                      {:else if trade.uexSellId}
+                        <button
+                          onclick={() => pushSellToUex(trade)}
+                          title="Logged as UEX trade #{trade.uexSellId}. Click to push again."
+                          class="px-2 py-1 border border-green-800 text-green-500 text-xs uppercase tracking-wider hover:border-green-500 transition-all duration-150"
+                        >UEX</button>
+                      {:else}
+                        <button
+                          onclick={() => pushSellToUex(trade)}
+                          title="Push sell order to UEX trade log"
+                          class="px-2 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-accent hover:text-accent transition-all duration-150"
+                        >UEX</button>
+                      {/if}
+                    {/if}
                     {#if canManage}
                       <button onclick={() => openEdit(trade)}
                         class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-text hover:text-text transition-all duration-150">
@@ -277,6 +351,69 @@
     </div>
   {/if}
 </div>
+
+<!-- ── Buy Order Detail Modal ─────────────────────────────────────────────────── -->
+{#if showBuyDetailModal && buyDetailTrade}
+  {@const t = buyDetailTrade}
+  <div
+    class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+    onkeydown={(e) => e.key === 'Escape' && (showBuyDetailModal = false)}
+  >
+    <div class="rsi-panel bg-surface border border-border w-full max-w-sm shadow-2xl" style="box-shadow: 0 0 40px rgba(66,200,244,0.08);">
+
+      <div class="px-5 py-3 border-b border-border flex items-center gap-3 rsi-scanline">
+        <div class="w-1 h-4 bg-accent opacity-70"></div>
+        <div class="flex-1 min-w-0">
+          <h2 style="font-family: 'Orbitron', sans-serif;" class="text-accent text-xs font-bold uppercase tracking-widest truncate">
+            {t.item}
+          </h2>
+        </div>
+        <span class="shrink-0 px-2 py-0.5 text-xs font-bold uppercase tracking-wider border border-border text-muted">
+          Buy Order
+        </span>
+      </div>
+
+      <div class="px-5 py-4 space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="border border-border bg-bg px-3 py-2">
+            <p class="text-xs uppercase tracking-widest text-muted font-semibold mb-1">Qty Bought</p>
+            <p style="font-family: 'Orbitron', sans-serif;" class="text-accent font-bold text-sm">{t.amountSold.toLocaleString()}</p>
+          </div>
+          <div class="border border-border bg-bg px-3 py-2">
+            <p class="text-xs uppercase tracking-widest text-muted font-semibold mb-1">Buy Price / unit</p>
+            <p style="font-family: 'Orbitron', sans-serif;" class="text-text text-xs font-bold">
+              {t.buyPrice && t.buyPrice > 0 ? t.buyPrice.toLocaleString() + ' aUEC' : '—'}
+            </p>
+          </div>
+        </div>
+
+        <div class="border border-border bg-bg px-3 py-2">
+          <p class="text-xs uppercase tracking-widest text-muted font-semibold mb-1">Total Cost</p>
+          <p style="font-family: 'Orbitron', sans-serif;" class="text-text text-sm font-bold">
+            {t.buyPrice && t.buyPrice > 0 ? (t.amountSold * t.buyPrice).toLocaleString() + ' aUEC' : '—'}
+          </p>
+        </div>
+
+        <div class="border border-border bg-bg px-3 py-2">
+          <p class="text-xs uppercase tracking-widest text-muted font-semibold mb-1">Bought At</p>
+          <p class="text-text text-xs font-semibold">{t.buyLocation || '—'}</p>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 border-t border-border flex justify-end bg-bg/40">
+        <button
+          onclick={() => { showBuyDetailModal = false; buyDetailTrade = null; }}
+          class="px-4 py-2 border border-border text-muted text-xs font-semibold uppercase tracking-widest hover:border-text hover:text-text transition-all duration-150"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <!-- Edit Trade Modal -->
 {#if showEditModal && editTarget}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { firebaseUser, userRole, nickname, uexApiKey } from '$lib/stores';
+  import { firebaseUser, userRole, nickname, uexApiKey, uexSecretKey } from '$lib/stores';
   import { readStoredConfig, validateConfig, initFirebase, isFirebaseReady } from '$lib/firebase';
   import { signIn, signOut, initAuthListener, destroyAuthListener } from '$lib/auth';
   import { startSync, stopSync } from '$lib/firestoreSync';
@@ -310,35 +310,63 @@
       <h2 class="text-xs font-semibold uppercase tracking-widest text-muted">UEX Corp API</h2>
       <a href="https://uexcorp.space/api/apps" target="_blank" rel="noopener noreferrer"
         class="text-xs text-muted hover:text-accent transition-colors uppercase tracking-wider font-semibold">
-        Get API Key →
+        uexcorp.space →
       </a>
     </div>
 
     <p class="text-xs text-muted leading-relaxed">
-      Optional. Enables live commodity prices and best sell locations when you click an asset.
-      Create a free app at <span class="text-text">uexcorp.space/api/apps</span> to get a bearer token.
+      Optional. The <span class="text-text">App Token</span> enables live commodity prices and best sell locations.
+      The <span class="text-text">Personal Token</span> enables pushing buy/sell orders to your UEX trade log.
+      Both are available from your UEX profile.
     </p>
 
-    <div class="flex gap-2 items-center">
-      <input
-        type="password"
-        bind:value={$uexApiKey}
-        placeholder="Paste your UEX bearer token…"
-        class="flex-1 bg-bg border border-border text-text text-xs font-mono px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
-      />
+    <!-- App token (bearer) -->
+    <div class="space-y-1.5">
+      <label class="block text-xs uppercase tracking-widest text-muted font-semibold">App Token</label>
+      <div class="flex gap-2 items-center">
+        <input
+          type="password"
+          bind:value={$uexApiKey}
+          placeholder="Bearer token from uexcorp.space/api/apps…"
+          class="flex-1 bg-bg border border-border text-text text-xs font-mono px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
+        />
+        {#if $uexApiKey}
+          <button
+            onclick={() => ($uexApiKey = '')}
+            class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
+          >
+            Clear
+          </button>
+        {/if}
+      </div>
       {#if $uexApiKey}
-        <button
-          onclick={() => ($uexApiKey = '')}
-          class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
-        >
-          Clear
-        </button>
+        <p class="text-xs text-accent font-semibold uppercase tracking-wider">Set — live prices enabled.</p>
       {/if}
     </div>
 
-    {#if $uexApiKey}
-      <p class="text-xs text-accent font-semibold uppercase tracking-wider">API key set — live prices enabled.</p>
-    {/if}
+    <!-- Personal secret key -->
+    <div class="space-y-1.5">
+      <label class="block text-xs uppercase tracking-widest text-muted font-semibold">Personal Token</label>
+      <div class="flex gap-2 items-center">
+        <input
+          type="password"
+          bind:value={$uexSecretKey}
+          placeholder="Personal token from your UEX profile…"
+          class="flex-1 bg-bg border border-border text-text text-xs font-mono px-3 py-2 focus:outline-none focus:border-accent transition-colors placeholder:text-muted/40"
+        />
+        {#if $uexSecretKey}
+          <button
+            onclick={() => ($uexSecretKey = '')}
+            class="px-3 py-2 text-xs font-semibold uppercase tracking-wider border border-border text-muted hover:border-red-700 hover:text-red-400 transition-all duration-200"
+          >
+            Clear
+          </button>
+        {/if}
+      </div>
+      {#if $uexSecretKey}
+        <p class="text-xs text-accent font-semibold uppercase tracking-wider">Set — trade log push enabled.</p>
+      {/if}
+    </div>
   </section>
 
   <!-- ── Section 3: Role management (admin only) ───────────────────────────── -->

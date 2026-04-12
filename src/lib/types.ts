@@ -23,6 +23,7 @@ export interface Asset {
   location: string;
   createdAt: string;
   loggedBy?: string; // nickname of the user who created the record (Firebase mode only)
+  uexBuyId?: number; // id_user_trade returned after a successful UEX buy push
 }
 
 export interface Trade {
@@ -30,10 +31,12 @@ export interface Trade {
   assetId: string;
   item: string;
   amountSold: number;
-  buyPrice?: number;  // aUEC per unit at time of sale (absent on legacy records)
-  sellPrice: number;  // aUEC per unit
+  buyPrice?: number;    // aUEC per unit at time of sale (absent on legacy records)
+  buyLocation?: string; // where the asset was purchased (absent on legacy records)
+  sellPrice: number;    // aUEC per unit
   sellLocation: string;
   soldAt: string;
   loggedBy?: string; // nickname of the user who logged the trade (Firebase mode only)
+  uexSellId?: number; // id_user_trade returned after a successful UEX sell push
 }
 

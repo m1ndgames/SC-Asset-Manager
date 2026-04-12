@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { assets, trades, scItems, scLocations, firebaseUser, nickname, userRole, uexApiKey } from '$lib/stores';
+  import { assets, trades, scItems, scLocations, firebaseUser, nickname, userRole, uexApiKey, uexSecretKey } from '$lib/stores';
   import type { Asset, ScItem } from '$lib/types';
-  import { findEntity, fetchCommodityPrices, fetchItemPrices, topSellLocations, uexEntityUrl } from '$lib/uex';
+  import { findEntity, fetchCommodityPrices, fetchItemPrices, topSellLocations, uexEntityUrl, findTerminal, submitTrade } from '$lib/uex';
   import type { UexEntity, UexPrice } from '$lib/uex';
 
   // ── Permissions ─────────────────────────────────────────────────────────────
@@ -208,6 +208,7 @@
       item: sellTarget!.item,
       amountSold: qty,
       buyPrice: sellTarget!.buyPrice,
+      buyLocation: sellTarget!.location,
       sellPrice: Number(sSellPrice) || 0,
       sellLocation: sSellLocation.trim(),
       soldAt: new Date().toISOString(),
@@ -247,6 +248,33 @@
       uexError = e instanceof Error ? e.message : 'Failed to load UEX data.';
     } finally {
       uexLoading = false;
+    }
+  }
+
+  // ── UEX trade push ───────────────────────────────────────────────────────────
+  type PushState = { status: 'loading' | 'success' | 'error'; msg?: string };
+  let uexPush = $state<Record<string, PushState>>({});
+
+  async function pushBuyToUex(asset: Asset) {
+    if (asset.uexBuyId && !confirm(`Already logged to UEX as trade #${asset.uexBuyId}. Push again?`)) return;
+    uexPush = { ...uexPush, [asset.id]: { status: 'loading' } };
+    try {
+      const entity = await findEntity($uexApiKey, asset.item, scItemType(asset.item));
+      if (!entity || entity.type !== 'commodity') throw new Error('Not found as a UEX commodity');
+      const terminal = await findTerminal($uexApiKey, asset.location);
+      if (!terminal) throw new Error(`Terminal not found: "${asset.location}"`);
+      const uexBuyId = await submitTrade($uexApiKey, $uexSecretKey, {
+        id_terminal: terminal.id,
+        id_commodity: entity.id,
+        operation: 'buy',
+        scu: asset.amount,
+        price: asset.buyPrice,
+      });
+      assets.update(list => list.map(a => a.id === asset.id ? { ...a, uexBuyId } : a));
+      const { [asset.id]: _, ...rest } = uexPush;
+      uexPush = rest;
+    } catch (e) {
+      uexPush = { ...uexPush, [asset.id]: { status: 'error', msg: e instanceof Error ? e.message : 'Failed' } };
     }
   }
 
@@ -359,6 +387,30 @@
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-2">
+                    {#if $uexSecretKey && scItemType(asset.item) === 'commodity' && asset.location && (!asset.loggedBy || asset.loggedBy === $nickname)}
+                      {@const ps = uexPush[asset.id]}
+                      {#if ps?.status === 'loading'}
+                        <span class="px-2 py-1 text-xs text-muted border border-border animate-pulse uppercase tracking-wider">…</span>
+                      {:else if ps?.status === 'error'}
+                        <button
+                          onclick={() => { const { [asset.id]: _, ...rest } = uexPush; uexPush = rest; }}
+                          title={ps.msg}
+                          class="px-2 py-1 text-xs text-red-400 border border-red-800 uppercase tracking-wider font-semibold hover:bg-red-950 transition-colors"
+                        >✕</button>
+                      {:else if asset.uexBuyId}
+                        <button
+                          onclick={() => pushBuyToUex(asset)}
+                          title="Logged as UEX trade #{asset.uexBuyId}. Click to push again."
+                          class="px-2 py-1 border border-green-800 text-green-500 text-xs uppercase tracking-wider hover:border-green-500 transition-all duration-150"
+                        >UEX</button>
+                      {:else}
+                        <button
+                          onclick={() => pushBuyToUex(asset)}
+                          title="Push buy order to UEX trade log"
+                          class="px-2 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-accent hover:text-accent transition-all duration-150"
+                        >UEX</button>
+                      {/if}
+                    {/if}
                     {#if canSell(asset)}
                       <button onclick={() => openSell(asset)}
                         class="px-3 py-1 bg-accent-glow border border-accent-dim text-accent text-xs font-bold uppercase tracking-wider hover:bg-accent hover:text-bg transition-all duration-150">
