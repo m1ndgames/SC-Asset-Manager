@@ -27,6 +27,9 @@ export const assets = localStore<Asset[]>('sc_assets', []);
 export const trades = localStore<Trade[]>('sc_trades', []);
 export const nickname = localStore<string>('sc_nickname', '');
 export const uexApiKey = localStore<string>('sc_uex_api_key', '');
+export const uexSecretKey = localStore<string>('sc_uex_secret_key', '');
+// IDs (asset or trade) that have been successfully pushed to UEX trade log
+export const uexLoggedIds = localStore<string[]>('sc_uex_logged_ids', []);
 
 // Items fetched from /items.json at startup — not persisted to localStorage
 export const scItems = writable<ScItem[]>([]);

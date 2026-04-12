@@ -126,26 +126,45 @@
         05 — UEX Corp Integration
       </span>
     </div>
-    <div class="px-5 py-4 space-y-3 text-sm text-text leading-relaxed">
+    <div class="px-5 py-4 space-y-4 text-sm text-text leading-relaxed">
       <p>
-        Click any asset name to open a detail panel powered by
-        <a href="https://uexcorp.space" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline underline-offset-2 transition-colors">UEX Corp</a>.
-        With a free API key configured in <a href="/settings" class="text-accent hover:underline underline-offset-2 transition-colors">Settings</a> you get:
+        Powered by <a href="https://uexcorp.space" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline underline-offset-2 transition-colors">UEX Corp</a>.
+        Two tokens can be configured in <a href="/settings" class="text-accent hover:underline underline-offset-2 transition-colors">Settings</a> — get them at uexcorp.space/api/apps.
       </p>
-      <ul class="space-y-2 ml-2">
-        <li class="flex gap-3">
-          <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span>Live sell prices across all terminals, filterable by star system</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span>Estimated profit per unit and total profit based on your buy price</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
-          <span>Commodity flags (Illegal, Explosive, Volatile) and a direct link to the UEX item page</span>
-        </li>
-      </ul>
+      <div class="space-y-1">
+        <p class="text-text font-semibold">App Token</p>
+        <ul class="space-y-2 ml-2">
+          <li class="flex gap-3">
+            <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+            <span>Click any asset name to open a detail panel with live sell prices across all terminals, filterable by star system</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+            <span>Estimated profit per unit and total profit based on your buy price</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+            <span>Commodity flags (Illegal, Explosive, Volatile) and a direct link to the UEX item page</span>
+          </li>
+        </ul>
+      </div>
+      <div class="space-y-1">
+        <p class="text-text font-semibold">Personal Token <span class="text-muted font-normal">(also required for trade push)</span></p>
+        <ul class="space-y-2 ml-2">
+          <li class="flex gap-3">
+            <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+            <span>A <span class="text-text font-semibold">UEX</span> button appears next to each commodity in Inventory and Trade Log — click it to push the buy or sell order directly to your UEX Corp trade log</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+            <span>The button turns green once a trade has been logged; clicking it again asks for confirmation before re-pushing</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="text-accent font-bold shrink-0" style="font-family: 'Orbitron', sans-serif;">+</span>
+            <span>In multi-user mode, the button is only visible on records you logged yourself</span>
+          </li>
+        </ul>
+      </div>
     </div>
   </section>
 

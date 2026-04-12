@@ -39,6 +39,15 @@ export interface UexEntity {
   type: 'commodity' | 'item';
 }
 
+export interface UexTerminal {
+  id: number;
+  name: string;
+  fullname: string;
+  nickname: string | null;
+  type: string;
+  is_available: number;
+}
+
 export interface UexPrice {
   terminal_name: string;
   terminal_slug: string;
@@ -58,12 +67,14 @@ interface UexCategory {
 }
 
 // Module-level cache (in-memory, lives for the page session)
+let terminalsCache: { data: UexTerminal[]; ts: number } | null = null;
 let commoditiesCache: { data: UexCommodity[]; ts: number } | null = null;
 let itemsCache: { data: UexItem[]; ts: number } | null = null;
 // In-flight promise for items so parallel openDetail calls don't double-fetch
 let itemsFetch: Promise<UexItem[]> | null = null;
 const priceCache = new Map<string, { data: UexPrice[]; ts: number }>();
 
+const TERMINALS_TTL   = 60 * 60 * 1000;  // 1 hour
 const COMMODITIES_TTL = 60 * 60 * 1000;  // 1 hour
 const ITEMS_TTL       = 60 * 60 * 1000;  // 1 hour
 const PRICES_TTL      = 30 * 60 * 1000;  // 30 minutes
@@ -222,6 +233,98 @@ export function topSellLocations(prices: UexPrice[], n = 5): UexPrice[] {
 
 function toSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+export async function fetchTerminals(apiKey: string): Promise<UexTerminal[]> {
+  const now = Date.now();
+  if (terminalsCache && now - terminalsCache.ts < TERMINALS_TTL) return terminalsCache.data;
+  const res = await fetch(`${UEX_BASE}/terminals/`, { headers: authHeaders(apiKey) });
+  if (!res.ok) throw new Error(`UEX ${res.status}`);
+  const json = await res.json();
+  terminalsCache = { data: json.data as UexTerminal[], ts: now };
+  return terminalsCache.data;
+}
+
+/**
+ * Fuzzy-match a location string (station/city name from scunpacked) against
+ * UEX terminal names. Our strings are coarse (e.g. "Levski", "Area18") while
+ * UEX names are short codes like "Admin - ARC-L1", so we try several strategies.
+ */
+export async function findTerminal(apiKey: string, locationName: string): Promise<UexTerminal | null> {
+  if (!locationName) return null;
+  const terminals = await fetchTerminals(apiKey);
+  const lower = locationName.toLowerCase();
+
+  const prefer = (list: UexTerminal[]) =>
+    list.find((t) => t.type === 'commodity') ?? list[0] ?? null;
+
+  // 1. Exact match on any name field
+  const exact = terminals.filter(
+    (t) =>
+      t.fullname?.toLowerCase() === lower ||
+      t.name?.toLowerCase() === lower ||
+      t.nickname?.toLowerCase() === lower
+  );
+  if (exact.length) return prefer(exact);
+
+  // 2. Our string appears inside the terminal's fullname
+  const inFull = terminals.filter((t) => t.fullname?.toLowerCase().includes(lower));
+  if (inFull.length) return prefer(inFull);
+
+  // 3. Our string appears inside nickname
+  const inNick = terminals.filter((t) => t.nickname?.toLowerCase().includes(lower));
+  if (inNick.length) return prefer(inNick);
+
+  // 4. Terminal name appears inside our string
+  const nameInOurs = terminals.filter(
+    (t) => t.name && lower.includes(t.name.toLowerCase())
+  );
+  if (nameInOurs.length) return prefer(nameInOurs);
+
+  // 5. Extract Lagrange-point code (e.g. "ARC-L1") from the start of our location name.
+  //    UEX terminal names use format "Merchant - ARC-L1" so the code appears as a suffix.
+  const lpMatch = locationName.match(/^([A-Z]+-L\d+)\b/i);
+  if (lpMatch) {
+    const lpCode = lpMatch[1].toLowerCase();
+    const byLp = terminals.filter(
+      (t) =>
+        t.name?.toLowerCase().includes(lpCode) ||
+        t.fullname?.toLowerCase().includes(lpCode)
+    );
+    if (byLp.length) return prefer(byLp);
+  }
+
+  return null;
+}
+
+export interface UexTradeParams {
+  id_terminal: number;
+  id_commodity: number;
+  operation: 'buy' | 'sell';
+  scu: number;
+  price: number;
+}
+
+/** Submit a single trade leg to UEX user_trades_add. Returns the new id_user_trade. */
+export async function submitTrade(
+  apiKey: string,
+  secretKey: string,
+  params: UexTradeParams
+): Promise<number> {
+  const res = await fetch(`${UEX_BASE}/user_trades_add/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'secret_key': secretKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ is_production: 1, ...params }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(json?.error ?? `UEX ${res.status}`);
+  }
+  return json.data?.id_user_trade as number;
 }
 
 export function uexEntityUrl(entity: UexEntity): string {

@@ -42,6 +42,8 @@ User data (`assets`, `trades`) is held in localStorage-backed stores defined in 
 | `trades` | `Trade[]` | localStorage |
 | `nickname` | `string` | localStorage |
 | `uexApiKey` | `string` | localStorage |
+| `uexSecretKey` | `string` | localStorage |
+| `uexLoggedIds` | `string[]` | localStorage |
 | `scItems` | `ScItem[]` | no (fetched on load) |
 | `scLocations` | `string[]` | no (fetched on load) |
 | `firebaseUser` | `User \| null` | no (set by auth listener) |
@@ -53,9 +55,9 @@ User data (`assets`, `trades`) is held in localStorage-backed stores defined in 
 | Route | Purpose |
 |---|---|
 | `/` | redirects to `/assets` |
-| `/assets` | add / edit / delete assets; sell modal; Mine filter; type filter; click item name → UEX detail popup |
-| `/trades` | trade history; edit / delete records; CSV export; Mine filter |
-| `/settings` | Firebase config, sign-in/out, nickname, role management (admin only); UEX API key |
+| `/assets` | add / edit / delete assets; sell modal; Mine filter; type filter; click item name → UEX detail popup; UEX buy push button per commodity row |
+| `/trades` | trade history; edit / delete records; CSV export; Mine filter; buy order detail popup; UEX sell push button per commodity row |
+| `/settings` | Firebase config, sign-in/out, nickname, role management (admin only); UEX App Token + Personal Token |
 | `/info` | static usage guide (formerly `/howto`) |
 
 ### Firebase lib files (`src/lib/`)
@@ -69,7 +71,7 @@ User data (`assets`, `trades`) is held in localStorage-backed stores defined in 
 
 ### UEX Corp lib (`src/lib/uex.ts`)
 
-Client for the [UEX Corp API v2](https://uexcorp.space/api/documentation/) with module-level in-memory cache (commodities/items: 1 h, prices: 30 min). Key exports:
+Client for the [UEX Corp API v2](https://uexcorp.space/api/documentation/) with module-level in-memory cache (commodities/items/terminals: 1 h, prices: 30 min). Key exports:
 
 | Export | Purpose |
 |---|---|
@@ -78,11 +80,16 @@ Client for the [UEX Corp API v2](https://uexcorp.space/api/documentation/) with 
 | `fetchItemPrices(apiKey, id)` | Prices for an item from `/items_prices` |
 | `topSellLocations(prices, n)` | Returns top N terminals sorted by sell price |
 | `uexEntityUrl(entity)` | Constructs the correct UEX Corp page URL (`?name=slug`) |
+| `fetchTerminals(apiKey)` | All terminals from `/terminals/`, cached 1 h |
+| `findTerminal(apiKey, locationName)` | Fuzzy-match a scunpacked location name to a UEX terminal; handles L-point codes (e.g. `"ARC-L1 Wide Forest Station"` → `"Admin - ARC-L1"`) |
+| `submitTrade(apiKey, secretKey, params)` | POST to `/user_trades_add/`; requires both App Token (Bearer) and Personal Token (`secret_key` header); returns `id_user_trade` |
 
 `findEntity` routing rules (via `scType` from `ScItem.type`):
 - `clothing | armor | weapon` → skip `/commodities`, query `/items` only
 - `commodity | consumable` → skip `/items`, query `/commodities` only
 - anything else → try `/commodities` first, fall back to `/items`
+
+**UEX trade push** — commodity rows in Inventory and Trade Log show a UEX button when `uexSecretKey` is set. The push resolves `findEntity` + `findTerminal`, calls `submitTrade`, and stores the returned `id_user_trade` on the record (`uexBuyId` / `uexSellId`). Button turns green when a trade ID is stored. Re-push asks for confirmation. In Firebase mode the button is hidden on records logged by other users (`loggedBy !== $nickname`).
 
 ### Base path
 

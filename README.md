@@ -11,7 +11,7 @@ A lightweight, browser-based tracker for your Star Citizen in-game commodities. 
 - **Searchable trading locations** — only shows locations with Commodity Trading (~225 stations)
 - **CSV export** — download your full trade history as a spreadsheet-ready CSV file
 - **Import / Export** — back up your data as JSON and restore it on any machine
-- **UEX Corp integration** *(opt-in)* — click any asset to see live sell prices, best locations by system, profit estimates, and commodity flags powered by [UEX Corp API](https://uexcorp.space/api/documentation/)
+- **UEX Corp integration** *(opt-in)* — click any asset to see live sell prices, best locations by system, profit estimates, and commodity flags; push buy/sell orders directly to your UEX Corp trade log — all powered by [UEX Corp API](https://uexcorp.space/api/documentation/)
 - **Firebase sync** *(opt-in)* — share a live database across multiple users with role-based access control; see [FIREBASE.md](FIREBASE.md) for setup
 
 ## Support
@@ -42,9 +42,13 @@ By default all data is stored in your browser's `localStorage` — nothing is se
 
 Use the **Export Data** button in the nav bar to download a JSON backup of your assets and trades. On the new machine, click **Import Data** to restore.
 
-### UEX Corp live prices
+### UEX Corp live prices & trade log
 
-Click any asset name in the Inventory to open a detail panel. With a free UEX Corp API key added in **Settings**, the panel shows live sell prices across all terminals (filterable by star system), profit per unit vs your buy price, and a direct link to the UEX Corp item page. Get a free key at [uexcorp.space/api/apps](https://uexcorp.space/api/apps).
+Click any asset name in the Inventory to open a detail panel. With a free UEX Corp **App Token** added in **Settings**, the panel shows live sell prices across all terminals (filterable by star system), profit per unit vs your buy price, and a direct link to the UEX Corp item page.
+
+With an additional **Personal Token** (also in Settings), a UEX button appears next to each commodity row in both Inventory and Trade Log. Clicking it pushes the buy or sell order to your personal UEX Corp trade log. The button turns green once a trade has been logged, and re-pushing asks for confirmation. In multi-user mode, only the user who logged the record sees the push button.
+
+Get both tokens at [uexcorp.space/api/apps](https://uexcorp.space/api/apps).
 
 ### Multi-user / group play
 
