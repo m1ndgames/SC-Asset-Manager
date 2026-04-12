@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "vite preview"
   },
   "devDependencies": {
     "@sveltejs/adapter-cloudflare": "^7.2.8",
