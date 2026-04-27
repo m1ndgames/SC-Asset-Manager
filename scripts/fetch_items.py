@@ -168,12 +168,12 @@ def fetch_locations() -> None:
 
     locations: list[str] = []
     for loc in data:
-        name = loc.get("name", "")
+        name = loc.get("Name", "")
         if not isinstance(name, str) or not name.strip():
             continue
-        amenities = loc.get("amenities") or []
+        amenities = loc.get("Amenities") or []
         has_trading = any(
-            a.get("displayName") == "Commodity Trading"
+            a.get("DisplayName") == "Commodity Trading"
             for a in amenities
             if isinstance(a, dict)
         )
