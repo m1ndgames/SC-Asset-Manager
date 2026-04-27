@@ -45,10 +45,13 @@
   let fItem = $state('');
   let fAmount = $state<number | ''>(1);
   let fBuyPrice = $state<number | ''>(0);
+  let fQuality = $state<number | ''>('');
   let fLocation = $state('');
   let fSearch = $state('');
   let fLocSearch = $state('');
   let formError = $state('');
+
+  let fItemType = $derived(scItemType(fItem));
 
   // ── Sell form ───────────────────────────────────────────────────────────────
   let sSellAmount = $state<number | ''>(1);
@@ -131,7 +134,7 @@
   }
 
   function openAdd() {
-    fItem = ''; fSearch = ''; fAmount = 1; fBuyPrice = 0;
+    fItem = ''; fSearch = ''; fAmount = 1; fBuyPrice = 0; fQuality = 0;
     fLocation = ''; fLocSearch = ''; formError = '';
     showAddModal = true;
   }
@@ -164,6 +167,7 @@
       amount: Number(fAmount),
       buyPrice: Number(fBuyPrice) || 0,
       location: fLocation.trim(),
+      ...(fItemType === 'commodity' ? { quality: Number(fQuality) || 0 } : {}),
       createdAt: new Date().toISOString(),
       ...($firebaseUser && $nickname ? { loggedBy: $nickname } : {})
     }]);
@@ -174,6 +178,7 @@
     editTarget = asset;
     fItem = asset.item; fSearch = asset.item;
     fAmount = asset.amount; fBuyPrice = asset.buyPrice;
+    fQuality = asset.quality ?? 0;
     fLocation = asset.location; fLocSearch = asset.location;
     formError = '';
     showEditModal = true;
@@ -184,10 +189,16 @@
     if (!fItem.trim()) { formError = 'Item name is required.'; return; }
     if (!fAmount || fAmount <= 0) { formError = 'Amount must be greater than 0.'; return; }
     assets.update((list) =>
-      list.map((a) => a.id === editTarget!.id
-        ? { ...a, item: fItem.trim(), amount: Number(fAmount), buyPrice: Number(fBuyPrice) || 0, location: fLocation.trim() }
-        : a
-      )
+      list.map((a) => {
+        if (a.id !== editTarget!.id) return a;
+        const updated = { ...a, item: fItem.trim(), amount: Number(fAmount), buyPrice: Number(fBuyPrice) || 0, location: fLocation.trim() };
+        if (fItemType === 'commodity') {
+          updated.quality = Number(fQuality) || 0;
+        } else {
+          delete updated.quality;
+        }
+        return updated;
+      })
     );
     showEditModal = false;
     editTarget = null;
@@ -379,6 +390,9 @@
                     onclick={() => openDetail(asset)}
                     class="font-semibold text-text hover:text-accent transition-colors text-left underline decoration-dotted underline-offset-2 decoration-muted/40 hover:decoration-accent"
                   >{asset.item}</button>
+                  {#if asset.quality !== undefined}
+                    <span class="inline-block text-xs text-accent/70 font-semibold mt-0.5" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">{asset.quality}</span>
+                  {/if}
                   {#if asset.loggedBy}
                     <span class="block text-xs text-muted/60 font-normal mt-0.5">{asset.loggedBy}</span>
                   {/if}
@@ -473,7 +487,12 @@
       <div class="px-5 py-4 space-y-4">
         <!-- Item -->
         <div>
-          <label for="f-item" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">Commodity</label>
+          <div class="flex items-center gap-2 mb-1">
+            <label for="f-item" class="text-xs uppercase tracking-widest text-muted font-semibold">Commodity</label>
+            {#if fItemType}
+              <span class="text-muted/50 text-xs uppercase tracking-wider" style="font-size: 9px;">{fItemType}</span>
+            {/if}
+          </div>
           <div class="relative">
             <input id="f-item" type="text"
               placeholder={$scItems.length ? 'Search items…' : 'Item name'}
@@ -516,6 +535,15 @@
               class="w-full bg-bg border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-accent transition-colors" />
           </div>
         </div>
+
+        <!-- Quality (commodities only) -->
+        {#if fItemType === 'commodity'}
+          <div>
+            <label for="f-quality" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">Quality</label>
+            <input id="f-quality" type="number" min="0" max="1000" placeholder="0–1000" bind:value={fQuality}
+              class="w-full bg-bg border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-accent transition-colors" />
+          </div>
+        {/if}
 
         <!-- Storage Location -->
         <div>

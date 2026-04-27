@@ -4,7 +4,7 @@ A lightweight, browser-based tracker for your Star Citizen in-game commodities. 
 
 ## Features
 
-- **Track assets** — log items you've bought with amount, price paid, and storage location
+- **Track assets** — log items you've bought with amount, price paid, storage location, and quality (0–1000) for commodities (SC 4.7.1+)
 - **Record sales** — mark assets as sold with quantity, sell location, and price; inventory updates automatically
 - **Trade history** — view all past sell orders with P&L summary per trade and overall
 - **Searchable item catalogue** — autocomplete backed by [StarCitizenWiki/scunpacked-data](https://github.com/StarCitizenWiki/scunpacked-data) (~7 500 items including ships, typed by category)

@@ -21,6 +21,7 @@ export interface Asset {
   amount: number;
   buyPrice: number; // aUEC per unit
   location: string;
+  quality?: number; // 0–1000, commodities only (SC 4.7.1+)
   createdAt: string;
   loggedBy?: string; // nickname of the user who created the record (Firebase mode only)
   uexBuyId?: number; // id_user_trade returned after a successful UEX buy push
