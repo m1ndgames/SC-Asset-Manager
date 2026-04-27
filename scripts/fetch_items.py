@@ -166,6 +166,7 @@ def fetch_locations() -> None:
         print(f"ERROR: starmap JSON invalid — {e}", file=sys.stderr)
         sys.exit(1)
 
+    seen: set[str] = set()
     locations: list[str] = []
     for loc in data:
         name = loc.get("Name", "")
@@ -177,7 +178,8 @@ def fetch_locations() -> None:
             for a in amenities
             if isinstance(a, dict)
         )
-        if has_trading:
+        if has_trading and name.strip() not in seen:
+            seen.add(name.strip())
             locations.append(name.strip())
 
     if not locations:
