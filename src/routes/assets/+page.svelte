@@ -1,7 +1,7 @@
 <script lang="ts">
   import { assets, trades, scItems, scLocations, firebaseUser, nickname, userRole, uexApiKey, uexSecretKey, triggerAddAsset } from '$lib/stores';
   import { onDestroy } from 'svelte';
-  import type { Asset, ScItem } from '$lib/types';
+  import type { Asset, ScItem, CargoUnit } from '$lib/types';
   import { findEntity, fetchCommodityPrices, fetchItemPrices, topSellLocations, uexEntityUrl, findTerminal, submitTrade } from '$lib/uex';
   import type { UexEntity, UexPrice } from '$lib/uex';
 
@@ -46,6 +46,7 @@
   let fAmount = $state<number | ''>(1);
   let fBuyPrice = $state<number | ''>(0);
   let fQuality = $state<number | ''>('');
+  let fUnit = $state<CargoUnit>('SCU');
   let fLocation = $state('');
   let fSearch = $state('');
   let fLocSearch = $state('');
@@ -53,8 +54,27 @@
 
   let fItemType = $derived(scItemType(fItem));
 
+  const CARGO_UNITS: CargoUnit[] = ['SCU', 'cSCU', 'μSCU'];
+  function isCargo(type: string): boolean { return type === 'commodity'; }
+  function toMicroSCU(amount: number, unit: CargoUnit): number {
+    if (unit === 'SCU') return amount * 1_000_000;
+    if (unit === 'cSCU') return amount * 10_000;
+    return amount;
+  }
+  function fromMicroSCU(uSCU: number, unit: CargoUnit): number {
+    if (unit === 'SCU') return uSCU / 1_000_000;
+    if (unit === 'cSCU') return uSCU / 10_000;
+    return uSCU;
+  }
+  function toSCU(amount: number, unit?: CargoUnit): number {
+    if (!unit || unit === 'SCU') return amount;
+    if (unit === 'cSCU') return amount / 100;
+    return amount / 1_000_000;
+  }
+
   // ── Sell form ───────────────────────────────────────────────────────────────
   let sSellAmount = $state<number | ''>(1);
+  let sSellUnit = $state<CargoUnit>('SCU');
   let sSellPrice = $state<number | ''>(0);
   let sSellLocation = $state('');
   let sSellLocSearch = $state('');
@@ -134,7 +154,7 @@
   }
 
   function openAdd() {
-    fItem = ''; fSearch = ''; fAmount = 1; fBuyPrice = 0; fQuality = 0;
+    fItem = ''; fSearch = ''; fAmount = 1; fBuyPrice = 0; fQuality = 0; fUnit = 'SCU';
     fLocation = ''; fLocSearch = ''; formError = '';
     showAddModal = true;
   }
@@ -167,7 +187,7 @@
       amount: Number(fAmount),
       buyPrice: Number(fBuyPrice) || 0,
       location: fLocation.trim(),
-      ...(fItemType === 'commodity' ? { quality: Number(fQuality) || 0 } : {}),
+      ...(isCargo(fItemType) ? { unit: fUnit, quality: Number(fQuality) || 0 } : {}),
       createdAt: new Date().toISOString(),
       ...($firebaseUser && $nickname ? { loggedBy: $nickname } : {})
     }]);
@@ -179,6 +199,7 @@
     fItem = asset.item; fSearch = asset.item;
     fAmount = asset.amount; fBuyPrice = asset.buyPrice;
     fQuality = asset.quality ?? 0;
+    fUnit = asset.unit ?? 'SCU';
     fLocation = asset.location; fLocSearch = asset.location;
     formError = '';
     showEditModal = true;
@@ -192,9 +213,11 @@
       list.map((a) => {
         if (a.id !== editTarget!.id) return a;
         const updated = { ...a, item: fItem.trim(), amount: Number(fAmount), buyPrice: Number(fBuyPrice) || 0, location: fLocation.trim() };
-        if (fItemType === 'commodity') {
+        if (isCargo(fItemType)) {
+          updated.unit = fUnit;
           updated.quality = Number(fQuality) || 0;
         } else {
+          delete updated.unit;
           delete updated.quality;
         }
         return updated;
@@ -211,7 +234,7 @@
 
   function openSell(asset: Asset) {
     sellTarget = asset;
-    sSellAmount = 1; sSellPrice = 0;
+    sSellAmount = 1; sSellUnit = asset.unit ?? 'SCU'; sSellPrice = 0;
     sSellLocation = ''; sSellLocSearch = '';
     sellError = '';
     showSellModal = true;
@@ -221,7 +244,20 @@
     if (!sellTarget) return;
     const qty = Number(sSellAmount);
     if (!qty || qty <= 0) { sellError = 'Amount must be greater than 0.'; return; }
-    if (qty > sellTarget.amount) { sellError = `Max available: ${sellTarget.amount}.`; return; }
+
+    let qtyInAssetUnit: number;
+    if (sellTarget.unit) {
+      const qtyMicro = toMicroSCU(qty, sSellUnit);
+      const availMicro = toMicroSCU(sellTarget.amount, sellTarget.unit);
+      if (qtyMicro > availMicro) {
+        sellError = `Max: ${fromMicroSCU(availMicro, sSellUnit).toLocaleString()} ${sSellUnit}`;
+        return;
+      }
+      qtyInAssetUnit = fromMicroSCU(qtyMicro, sellTarget.unit);
+    } else {
+      if (qty > sellTarget.amount) { sellError = `Max available: ${sellTarget.amount}.`; return; }
+      qtyInAssetUnit = qty;
+    }
 
     trades.update((list) => [...list, {
       id: crypto.randomUUID(),
@@ -233,12 +269,13 @@
       sellPrice: Number(sSellPrice) || 0,
       sellLocation: sSellLocation.trim(),
       soldAt: new Date().toISOString(),
+      ...(sellTarget!.unit ? { unit: sSellUnit, buyUnit: sellTarget!.unit } : {}),
       ...($firebaseUser && $nickname ? { loggedBy: $nickname } : {})
     }]);
 
     assets.update((list) => {
       const updated = list.map((a) =>
-        a.id === sellTarget!.id ? { ...a, amount: a.amount - qty } : a
+        a.id === sellTarget!.id ? { ...a, amount: a.amount - qtyInAssetUnit } : a
       );
       return updated.filter((a) => a.amount > 0);
     });
@@ -288,7 +325,7 @@
         id_terminal: terminal.id,
         id_commodity: entity.id,
         operation: 'buy',
-        scu: asset.amount,
+        scu: toSCU(asset.amount, asset.unit),
         price: asset.buyPrice,
       });
       assets.update(list => list.map(a => a.id === asset.id ? { ...a, uexBuyId } : a));
@@ -370,44 +407,46 @@
   {:else}
     <div class="rsi-panel border border-border overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full">
           <thead class="rsi-scanline bg-surface border-b border-border">
             <tr>
               <th onclick={() => toggleSort('item')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Item{si('item')}</th>
-              <th onclick={() => toggleSort('amount')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Amount{si('amount')}</th>
-              <th onclick={() => toggleSort('buyPrice')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Price / Unit{si('buyPrice')}</th>
-              <th onclick={() => toggleSort('total')} class="hidden sm:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Total Cost{si('total')}</th>
-              <th onclick={() => toggleSort('location')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Location{si('location')}</th>
-              <th onclick={() => toggleSort('createdAt')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Added{si('createdAt')}</th>
+              <th onclick={() => toggleSort('amount')} class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Amount{si('amount')}</th>
+              <th onclick={() => toggleSort('buyPrice')} class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Price / Unit{si('buyPrice')}</th>
+              <th onclick={() => toggleSort('total')} class="hidden sm:table-cell px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Total Cost{si('total')}</th>
+              <th onclick={() => toggleSort('location')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Location{si('location')}</th>
+              <th onclick={() => toggleSort('createdAt')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Added{si('createdAt')}</th>
               <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
             {#each displayAssets as asset (asset.id)}
-              <tr class="bg-bg hover:bg-surface transition-colors duration-150 group">
+              <tr class="bg-bg hover:bg-surface-2 transition-colors duration-150 group">
                 <td class="px-4 py-3">
                   <button
                     onclick={() => openDetail(asset)}
                     class="font-semibold text-text hover:text-accent transition-colors text-left underline decoration-dotted underline-offset-2 decoration-muted/40 hover:decoration-accent"
                   >{asset.item}</button>
-                  {#if asset.quality !== undefined}
-                    <span class="inline-block text-xs text-accent/70 font-semibold mt-0.5" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">{asset.quality}</span>
+                  {#if asset.quality}
+                    <span class="inline-flex items-center px-1 py-px text-accent/60 border border-accent/20 bg-accent/5 ml-1 leading-none" style="font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 0.05em;">{asset.quality}</span>
                   {/if}
                   {#if asset.loggedBy}
                     <span class="block text-xs text-muted/60 font-normal mt-0.5">{asset.loggedBy}</span>
                   {/if}
                 </td>
-                <td class="px-4 py-3 text-accent font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 12px;">
-                  {asset.amount.toLocaleString()}
+                <td class="px-4 py-3 text-right text-accent font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 14px;">
+                  {asset.amount.toLocaleString()}{#if asset.unit ?? (scItemType(asset.item) === 'commodity' ? 'SCU' : null)} <span class="text-accent/40 font-normal" style="font-size: 11px;">{asset.unit ?? 'SCU'}</span>{/if}
                 </td>
-                <td class="px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
+                <td class="px-4 py-3 text-right text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 13px;">
                   {asset.buyPrice > 0 ? uec(asset.buyPrice) : '—'}
                 </td>
-                <td class="hidden sm:table-cell px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
+                <td class="hidden sm:table-cell px-4 py-3 text-right text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 13px;">
                   {asset.buyPrice > 0 ? uec(asset.amount * asset.buyPrice) : '—'}
                 </td>
-                <td class="hidden md:table-cell px-4 py-3 text-muted text-xs">{asset.location || '—'}</td>
-                <td class="hidden md:table-cell px-4 py-3 text-muted text-xs" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">
+                <td class="hidden md:table-cell px-4 py-3 text-muted text-xs">
+                  <div class="max-w-[180px] truncate" title={asset.location || undefined}>{asset.location || '—'}</div>
+                </td>
+                <td class="hidden md:table-cell px-4 py-3 text-muted whitespace-nowrap" style="font-family: 'Orbitron', sans-serif; font-size: 12px;">
                   {fmtDate(asset.createdAt)}
                 </td>
                 <td class="px-4 py-3">
@@ -426,19 +465,19 @@
                         <button
                           onclick={() => pushBuyToUex(asset)}
                           title="Logged as UEX trade #{asset.uexBuyId}. Click to push again."
-                          class="px-2 py-1 border border-green-800 text-green-500 text-xs uppercase tracking-wider hover:border-green-500 transition-all duration-150"
-                        >UEX</button>
+                          class="px-2 py-1 bg-green-950 border border-green-600 text-green-400 text-xs font-semibold uppercase tracking-wider hover:bg-green-900 transition-all duration-150"
+                        >✓ UEX</button>
                       {:else}
                         <button
                           onclick={() => pushBuyToUex(asset)}
                           title="Push buy order to UEX trade log"
                           class="px-2 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-accent hover:text-accent transition-all duration-150"
-                        >UEX</button>
+                        >↑ UEX</button>
                       {/if}
                     {/if}
                     {#if canSell(asset)}
                       <button onclick={() => openSell(asset)}
-                        class="px-3 py-1 bg-accent-glow border border-accent-dim text-accent text-xs font-bold uppercase tracking-wider hover:bg-accent hover:text-bg transition-all duration-150">
+                        class="px-3 py-1 bg-accent text-bg text-xs font-bold uppercase tracking-wider hover:bg-accent/80 transition-all duration-150">
                         Sell
                       </button>
                     {/if}
@@ -450,7 +489,7 @@
                     {/if}
                     {#if canDelete}
                       <button onclick={() => deleteAsset(asset.id)}
-                        class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-red-700 hover:text-red-500 transition-all duration-150">
+                        class="px-3 py-1 text-muted/40 text-xs uppercase tracking-wider hover:text-red-400 transition-all duration-150">
                         Delete
                       </button>
                     {/if}
@@ -464,6 +503,13 @@
               </tr>
             {/if}
           </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="7" class="px-4 py-2 text-right border-t border-border/40">
+                <span class="text-muted/30 uppercase tracking-widest" style="font-size: 10px;">{displayAssets.length} record{displayAssets.length !== 1 ? 's' : ''}</span>
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
@@ -523,14 +569,28 @@
         <div class="grid grid-cols-2 gap-3">
           <!-- Amount -->
           <div>
-            <label for="f-amount" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">Quantity</label>
-            <input id="f-amount" type="number" min="1" bind:value={fAmount}
+            <label for="f-amount" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">
+              Quantity{#if isCargo(fItemType)} ({fUnit}){/if}
+            </label>
+            <input id="f-amount" type="number" min="1" step="1" bind:value={fAmount}
               class="w-full bg-bg border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-accent transition-colors" />
+            {#if isCargo(fItemType)}
+              <div class="flex gap-1 mt-1.5">
+                {#each CARGO_UNITS as u}
+                  <button type="button" onclick={() => fUnit = u}
+                    class="flex-1 py-1 text-xs font-semibold tracking-wider border transition-all duration-150 {fUnit === u ? 'border-accent text-accent bg-accent/10' : 'border-border text-muted hover:border-accent hover:text-accent'}">
+                    {u}
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </div>
 
           <!-- Buy price -->
           <div>
-            <label for="f-buy-price" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">Buy Price / unit</label>
+            <label for="f-buy-price" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">
+              Buy Price / {isCargo(fItemType) ? fUnit : 'unit'}
+            </label>
             <input id="f-buy-price" type="number" min="0" bind:value={fBuyPrice}
               class="w-full bg-bg border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-accent transition-colors" />
           </div>
@@ -802,19 +862,33 @@
         <p class="text-xs text-muted mt-1 ml-4 font-semibold">
           {sellTarget.item}
           <span class="text-border mx-1">|</span>
-          <span style="font-family: 'Orbitron', sans-serif;">{sellTarget.amount.toLocaleString()}</span> units available
+          <span style="font-family: 'Orbitron', sans-serif;">{sellTarget.amount.toLocaleString()}</span> {sellTarget.unit ?? 'units'} available
         </p>
       </div>
 
       <div class="px-5 py-4 space-y-4">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label for="s-amount" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">Quantity</label>
-            <input id="s-amount" type="number" min="1" max={sellTarget.amount} bind:value={sSellAmount}
+            <label for="s-amount" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">
+              Quantity{#if sellTarget.unit} ({sSellUnit}){/if}
+            </label>
+            <input id="s-amount" type="number" min="1" step="1" bind:value={sSellAmount}
               class="w-full bg-bg border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-accent transition-colors" />
+            {#if sellTarget.unit}
+              <div class="flex gap-1 mt-1.5">
+                {#each CARGO_UNITS as u}
+                  <button type="button" onclick={() => sSellUnit = u}
+                    class="flex-1 py-1 text-xs font-semibold tracking-wider border transition-all duration-150 {sSellUnit === u ? 'border-accent text-accent bg-accent/10' : 'border-border text-muted hover:border-accent hover:text-accent'}">
+                    {u}
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </div>
           <div>
-            <label for="s-price" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">Price / unit (aUEC)</label>
+            <label for="s-price" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">
+              Price / {sellTarget.unit ?? 'unit'} (aUEC)
+            </label>
             <input id="s-price" type="number" min="0" bind:value={sSellPrice}
               class="w-full bg-bg border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-accent transition-colors" />
           </div>
@@ -849,14 +923,22 @@
         {#if Number(sSellAmount) > 0 && Number(sSellPrice) > 0}
           {@const qty = Number(sSellAmount)}
           {@const sell = Number(sSellPrice)}
-          {@const yield_ = qty * sell}
-          {@const cost = sellTarget.buyPrice > 0 ? qty * sellTarget.buyPrice : 0}
+          {@const qtyInAssetUnit = sellTarget.unit ? fromMicroSCU(toMicroSCU(qty, sSellUnit), sellTarget.unit) : qty}
+          {@const remaining = sellTarget.amount - qtyInAssetUnit}
+          {@const yield_ = qtyInAssetUnit * sell}
+          {@const cost = sellTarget.buyPrice > 0 ? qtyInAssetUnit * sellTarget.buyPrice : 0}
           {@const profit = yield_ - cost}
           <div class="border border-border-bright bg-accent-glow px-4 py-3 space-y-1.5">
             <div class="flex items-center justify-between">
               <span class="text-xs uppercase tracking-widest text-muted font-semibold">Expected Yield</span>
               <span style="font-family: 'Orbitron', sans-serif;" class="text-accent font-bold text-sm">{uec(yield_)}</span>
             </div>
+            {#if sellTarget.unit}
+              <div class="flex items-center justify-between">
+                <span class="text-xs uppercase tracking-widest text-muted font-semibold">Remaining</span>
+                <span style="font-family: 'Orbitron', sans-serif;" class="text-muted text-xs {remaining < 0 ? 'text-red-400' : ''}">{remaining < 0 ? 'Exceeds available' : `${remaining.toLocaleString()} ${sellTarget.unit}`}</span>
+              </div>
+            {/if}
             {#if sellTarget.buyPrice > 0}
               <div class="flex items-center justify-between">
                 <span class="text-xs uppercase tracking-widest text-muted font-semibold">Total Cost</span>

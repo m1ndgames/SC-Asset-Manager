@@ -1,6 +1,12 @@
 <script lang="ts">
   import { trades, scLocations, scItems, firebaseUser, nickname, userRole, uexApiKey, uexSecretKey } from '$lib/stores';
-  import type { Trade } from '$lib/types';
+  import type { Trade, CargoUnit } from '$lib/types';
+
+  function toSCU(amount: number, unit?: CargoUnit): number {
+    if (!unit || unit === 'SCU') return amount;
+    if (unit === 'cSCU') return amount / 100;
+    return amount / 1_000_000;
+  }
   import { findEntity, findTerminal, submitTrade } from '$lib/uex';
 
   // ── Permissions ──────────────────────────────────────────────────────────────
@@ -32,7 +38,7 @@
         id_terminal: terminal.id,
         id_commodity: entity.id,
         operation: 'sell',
-        scu: trade.amountSold,
+        scu: toSCU(trade.amountSold, trade.unit),
         price: trade.sellPrice,
       });
       trades.update(list => list.map(t => t.id === trade.id ? { ...t, uexSellId } : t));
@@ -41,15 +47,6 @@
     } catch (e) {
       uexPush = { ...uexPush, [trade.id]: { status: 'error', msg: e instanceof Error ? e.message : 'Failed' } };
     }
-  }
-
-  // ── Buy order detail popup ────────────────────────────────────────────────────
-  let showBuyDetailModal = $state(false);
-  let buyDetailTrade = $state<Trade | null>(null);
-
-  function openBuyDetail(trade: Trade) {
-    buyDetailTrade = trade;
-    showBuyDetailModal = true;
   }
 
   let fAmountSold = $state<number | ''>(0);
@@ -210,54 +207,49 @@
   {:else}
     <div class="rsi-panel border border-border overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full">
           <thead class="rsi-scanline bg-surface border-b border-border">
             <tr>
               <th onclick={() => toggleSort('item')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Item{si('item')}</th>
-              <th onclick={() => toggleSort('qty')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Qty{si('qty')}</th>
-              <th onclick={() => toggleSort('sell')} class="hidden sm:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Sell Price{si('sell')}</th>
-              <th onclick={() => toggleSort('profit')} class="px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Profit{si('profit')}</th>
-              <th onclick={() => toggleSort('location')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Location{si('location')}</th>
-              <th onclick={() => toggleSort('soldAt')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none">Date{si('soldAt')}</th>
+              <th onclick={() => toggleSort('qty')} class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Qty{si('qty')}</th>
+              <th onclick={() => toggleSort('sell')} class="hidden sm:table-cell px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Sell Price{si('sell')}</th>
+              <th onclick={() => toggleSort('profit')} class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Profit{si('profit')}</th>
+              <th onclick={() => toggleSort('location')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Location{si('location')}</th>
+              <th onclick={() => toggleSort('soldAt')} class="hidden md:table-cell px-4 py-3 text-left text-xs font-bold uppercase tracking-widest text-muted cursor-pointer hover:text-text select-none whitespace-nowrap">Date{si('soldAt')}</th>
               <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-widest text-muted">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-border">
             {#each displayTrades as trade (trade.id)}
               {@const profit = profitOf(trade)}
-              <tr class="bg-bg hover:bg-surface transition-colors duration-150">
+              <tr class="bg-bg hover:bg-surface-2 transition-colors duration-150">
                 <td class="px-4 py-3">
                   <span class="font-semibold text-text">{trade.item}</span>
                   {#if trade.loggedBy}
                     <span class="block text-xs text-muted/60 font-normal mt-0.5">{trade.loggedBy}</span>
                   {/if}
                 </td>
-                <td class="px-4 py-3 text-text font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
-                  {trade.amountSold.toLocaleString()}
+                <td class="px-4 py-3 text-right text-text font-bold" style="font-family: 'Orbitron', sans-serif; font-size: 13px;">
+                  {trade.amountSold.toLocaleString()}{#if trade.unit ?? (scItemType(trade.item) === 'commodity' ? 'SCU' : null)} <span class="text-accent/40 font-normal" style="font-size: 11px;">{trade.unit ?? 'SCU'}</span>{/if}
                 </td>
-                <td class="hidden sm:table-cell px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
+                <td class="hidden sm:table-cell px-4 py-3 text-right text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 13px;">
                   {trade.sellPrice > 0 ? uec(trade.sellPrice) : '—'}
                 </td>
-                <td class="px-4 py-3 font-bold {profitClass(profit)}" style="font-family: 'Orbitron', sans-serif; font-size: 11px;">
+                <td class="px-4 py-3 text-right font-bold {profitClass(profit)}" style="font-family: 'Orbitron', sans-serif; font-size: 13px;">
                   {#if profit !== null}
                     {profit >= 0 ? '+' : ''}{uec(profit)}
                   {:else}
                     <span class="text-muted opacity-40">—</span>
                   {/if}
                 </td>
-                <td class="hidden md:table-cell px-4 py-3 text-muted text-xs">{trade.sellLocation || '—'}</td>
-                <td class="hidden md:table-cell px-4 py-3 text-muted" style="font-family: 'Orbitron', sans-serif; font-size: 10px;">
+                <td class="hidden md:table-cell px-4 py-3 text-muted text-xs">
+                  <div class="max-w-[180px] truncate" title={trade.sellLocation || undefined}>{trade.sellLocation || '—'}</div>
+                </td>
+                <td class="hidden md:table-cell px-4 py-3 text-muted whitespace-nowrap" style="font-family: 'Orbitron', sans-serif; font-size: 12px;">
                   {fmtDate(trade.soldAt)}
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-end gap-2">
-                    <button
-                      onclick={() => openBuyDetail(trade)}
-                      title="Buy order details"
-                      class="px-2 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-accent hover:text-accent transition-all duration-150"
-                    >
-                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </button>
                     {#if $uexSecretKey && scItemType(trade.item) === 'commodity' && trade.sellLocation && (!trade.loggedBy || trade.loggedBy === $nickname)}
                       {@const ps = uexPush[trade.id]}
                       {#if ps?.status === 'loading'}
@@ -272,14 +264,14 @@
                         <button
                           onclick={() => pushSellToUex(trade)}
                           title="Logged as UEX trade #{trade.uexSellId}. Click to push again."
-                          class="px-2 py-1 border border-green-800 text-green-500 text-xs uppercase tracking-wider hover:border-green-500 transition-all duration-150"
-                        >UEX</button>
+                          class="px-2 py-1 bg-green-950 border border-green-600 text-green-400 text-xs font-semibold uppercase tracking-wider hover:bg-green-900 transition-all duration-150"
+                        >✓ UEX</button>
                       {:else}
                         <button
                           onclick={() => pushSellToUex(trade)}
                           title="Push sell order to UEX trade log"
                           class="px-2 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-accent hover:text-accent transition-all duration-150"
-                        >UEX</button>
+                        >↑ UEX</button>
                       {/if}
                     {/if}
                     {#if canManage}
@@ -288,7 +280,7 @@
                         Edit
                       </button>
                       <button onclick={() => deleteTrade(trade.id)}
-                        class="px-3 py-1 border border-border text-muted text-xs uppercase tracking-wider hover:border-red-700 hover:text-red-500 transition-all duration-150">
+                        class="px-3 py-1 text-muted/40 text-xs uppercase tracking-wider hover:text-red-400 transition-all duration-150">
                         Delete
                       </button>
                     {/if}
@@ -302,74 +294,18 @@
               </tr>
             {/if}
           </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="8" class="px-4 py-2 text-right border-t border-border/40">
+                <span class="text-muted/30 uppercase tracking-widest" style="font-size: 10px;">{displayTrades.length} record{displayTrades.length !== 1 ? 's' : ''}</span>
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
   {/if}
 </div>
-
-<!-- ── Buy Order Detail Modal ─────────────────────────────────────────────────── -->
-{#if showBuyDetailModal && buyDetailTrade}
-  {@const t = buyDetailTrade}
-  <div
-    class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm"
-    role="dialog"
-    aria-modal="true"
-    tabindex="-1"
-    onkeydown={(e) => e.key === 'Escape' && (showBuyDetailModal = false)}
-  >
-    <div class="rsi-panel bg-surface border border-border w-full max-w-sm shadow-2xl" style="box-shadow: 0 0 40px rgba(66,200,244,0.08);">
-
-      <div class="px-5 py-3 border-b border-border flex items-center gap-3 rsi-scanline">
-        <div class="w-1 h-4 bg-accent opacity-70"></div>
-        <div class="flex-1 min-w-0">
-          <h2 style="font-family: 'Orbitron', sans-serif;" class="text-accent text-xs font-bold uppercase tracking-widest truncate">
-            {t.item}
-          </h2>
-        </div>
-        <span class="shrink-0 px-2 py-0.5 text-xs font-bold uppercase tracking-wider border border-border text-muted">
-          Buy Order
-        </span>
-      </div>
-
-      <div class="px-5 py-4 space-y-3">
-        <div class="grid grid-cols-2 gap-3">
-          <div class="border border-border bg-bg px-3 py-2">
-            <p class="text-xs uppercase tracking-widest text-muted font-semibold mb-1">Qty Bought</p>
-            <p style="font-family: 'Orbitron', sans-serif;" class="text-accent font-bold text-sm">{t.amountSold.toLocaleString()}</p>
-          </div>
-          <div class="border border-border bg-bg px-3 py-2">
-            <p class="text-xs uppercase tracking-widest text-muted font-semibold mb-1">Buy Price / unit</p>
-            <p style="font-family: 'Orbitron', sans-serif;" class="text-text text-xs font-bold">
-              {t.buyPrice && t.buyPrice > 0 ? t.buyPrice.toLocaleString() + ' aUEC' : '—'}
-            </p>
-          </div>
-        </div>
-
-        <div class="border border-border bg-bg px-3 py-2">
-          <p class="text-xs uppercase tracking-widest text-muted font-semibold mb-1">Total Cost</p>
-          <p style="font-family: 'Orbitron', sans-serif;" class="text-text text-sm font-bold">
-            {t.buyPrice && t.buyPrice > 0 ? (t.amountSold * t.buyPrice).toLocaleString() + ' aUEC' : '—'}
-          </p>
-        </div>
-
-        <div class="border border-border bg-bg px-3 py-2">
-          <p class="text-xs uppercase tracking-widest text-muted font-semibold mb-1">Bought At</p>
-          <p class="text-text text-xs font-semibold">{t.buyLocation || '—'}</p>
-        </div>
-      </div>
-
-      <div class="px-5 py-3 border-t border-border flex justify-end bg-bg/40">
-        <button
-          onclick={() => { showBuyDetailModal = false; buyDetailTrade = null; }}
-          class="px-4 py-2 border border-border text-muted text-xs font-semibold uppercase tracking-widest hover:border-text hover:text-text transition-all duration-150"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
 
 <!-- Edit Trade Modal -->
 {#if showEditModal && editTarget}
@@ -389,8 +325,8 @@
       <div class="px-5 py-4 space-y-4">
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label for="t-amount" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">Quantity Sold</label>
-            <input id="t-amount" type="number" min="1" bind:value={fAmountSold}
+            <label for="t-amount" class="block text-xs uppercase tracking-widest text-muted mb-1 font-semibold">Quantity Sold{#if editTarget.unit ?? (scItemType(editTarget.item) === 'commodity' ? 'SCU' : null)} ({editTarget.unit ?? 'SCU'}){/if}</label>
+            <input id="t-amount" type="number" min="1" step="1" bind:value={fAmountSold}
               class="w-full bg-bg border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-accent transition-colors" />
           </div>
           <div>

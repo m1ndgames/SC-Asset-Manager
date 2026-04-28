@@ -1,4 +1,5 @@
 export type Role = 'admin' | 'moderator' | 'user';
+export type CargoUnit = 'SCU' | 'cSCU' | 'μSCU';
 
 export interface ScItem {
   name: string;
@@ -19,7 +20,8 @@ export interface Asset {
   id: string;
   item: string;
   amount: number;
-  buyPrice: number; // aUEC per unit
+  unit?: CargoUnit; // absent = plain numeric quantity
+  buyPrice: number; // aUEC per unit (same unit as amount)
   location: string;
   quality?: number; // 0–1000, commodities only (SC 4.7.1+)
   createdAt: string;
@@ -32,7 +34,9 @@ export interface Trade {
   assetId: string;
   item: string;
   amountSold: number;
-  buyPrice?: number;    // aUEC per unit at time of sale (absent on legacy records)
+  unit?: CargoUnit;    // unit amountSold is expressed in (sell unit)
+  buyUnit?: CargoUnit; // unit buyPrice is denominated in (asset's buy unit)
+  buyPrice?: number;   // aUEC per buyUnit at time of sale (absent on legacy records)
   buyLocation?: string; // where the asset was purchased (absent on legacy records)
   sellPrice: number;    // aUEC per unit
   sellLocation: string;

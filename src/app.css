@@ -10,7 +10,7 @@
   --color-accent-dim:   #1a8ab5;
   --color-accent-glow:  rgba(66, 200, 244, 0.12);
   --color-text:         #c8dde8;
-  --color-muted:        #4a7a9b;
+  --color-muted:        #7aabcc;
   --color-danger:       #7f1d1d;
   --color-danger-text:  #f87171;
 
@@ -22,7 +22,7 @@ html, body {
   background-color: #000b11;
   color: #c8dde8;
   font-family: 'Rajdhani', sans-serif;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* Noise overlay */

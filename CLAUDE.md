@@ -34,6 +34,16 @@ scItems / scLocations stores (plain writable, NOT localStorage-backed)
 
 User data (`assets`, `trades`) is held in localStorage-backed stores defined in `src/lib/stores.ts`.
 
+### Cargo unit support
+
+Commodity assets and trades carry an optional `unit?: CargoUnit` field (`'SCU' | 'cSCU' | 'μSCU'`). When present, quantities are displayed with the unit label and the sell modal shows a unit toggle. Helper functions in `src/routes/assets/+page.svelte`:
+
+- `toMicroSCU(amount, unit)` — converts any unit to μSCU for cross-unit arithmetic (1 SCU = 1 000 000 μSCU, 1 cSCU = 10 000 μSCU)
+- `fromMicroSCU(uSCU, unit)` — inverse
+- `toSCU(amount, unit?)` — converts to SCU for UEX trade push (`scu` param)
+
+`Asset.unit` is the buy unit (set when item type is `commodity`). `Trade.unit` is the sell unit; `Trade.buyUnit` is the asset's unit at sale time. Both may differ (e.g. bought 1 SCU, sold 1 cSCU). The profit calculation in the trade table uses `amountSold` and `sellPrice`/`buyPrice` — these are all in the sell unit, so cross-unit profit display is approximate for mixed-unit trades.
+
 ### Stores (`src/lib/stores.ts`)
 
 | Store | Type | Persisted |
@@ -56,7 +66,7 @@ User data (`assets`, `trades`) is held in localStorage-backed stores defined in 
 |---|---|
 | `/` | redirects to `/assets` |
 | `/assets` | add / edit / delete assets; sell modal; Mine filter; type filter; click item name → UEX detail popup; UEX buy push button per commodity row |
-| `/trades` | trade history; edit / delete records; CSV export; Mine filter; buy order detail popup; UEX sell push button per commodity row |
+| `/trades` | trade history; edit / delete records; CSV export; Mine filter; UEX sell push button per commodity row |
 | `/settings` | Firebase config, sign-in/out, nickname, role management (admin only); UEX App Token + Personal Token |
 | `/info` | static usage guide (formerly `/howto`) |
 
@@ -89,7 +99,7 @@ Client for the [UEX Corp API v2](https://uexcorp.space/api/documentation/) with 
 - `commodity | consumable` → skip `/items`, query `/commodities` only
 - anything else → try `/commodities` first, fall back to `/items`
 
-**UEX trade push** — commodity rows in Inventory and Trade Log show a UEX button when `uexSecretKey` is set. The push resolves `findEntity` + `findTerminal`, calls `submitTrade`, and stores the returned `id_user_trade` on the record (`uexBuyId` / `uexSellId`). Button turns green when a trade ID is stored. Re-push asks for confirmation. In Firebase mode the button is hidden on records logged by other users (`loggedBy !== $nickname`).
+**UEX trade push** — commodity rows in Inventory and Trade Log show a UEX button when `uexSecretKey` is set. The push resolves `findEntity` + `findTerminal`, calls `submitTrade`, and stores the returned `id_user_trade` on the record (`uexBuyId` / `uexSellId`). Button shows `↑ UEX` (unlogged, muted border) or `✓ UEX` (logged, solid green background). Re-push asks for confirmation. In Firebase mode the button is hidden on records logged by other users (`loggedBy !== $nickname`).
 
 ### Base path
 

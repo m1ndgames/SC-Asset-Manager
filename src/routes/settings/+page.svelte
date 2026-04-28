@@ -337,10 +337,10 @@
     </h1>
   </div>
 
-  <div class="flex gap-8">
+  <div class="flex gap-0">
 
     <!-- ── Sidebar navigation ───────────────────────────────────────────────── -->
-    <nav class="w-44 shrink-0 space-y-0.5">
+    <nav class="w-44 shrink-0 space-y-0.5 border-r border-border/60 pr-4 mr-0">
 
       <button
         onclick={() => (activeSection = 'general')}
@@ -378,7 +378,7 @@
     </nav>
 
     <!-- ── Content area ──────────────────────────────────────────────────────── -->
-    <div class="flex-1 min-w-0 space-y-6">
+    <div class="flex-1 min-w-0 space-y-6 pl-8">
 
       <!-- ══ GENERAL ══════════════════════════════════════════════════════════ -->
       {#if activeSection === 'general'}
