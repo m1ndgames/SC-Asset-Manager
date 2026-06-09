@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SC Asset Manager is a browser-based Star Citizen commodity tracker. It is a fully client-side SPA — no backend. All user data (assets and trades) is persisted in `localStorage` by default. Item and location data is fetched from [StarCitizenWiki/scunpacked-data](https://github.com/StarCitizenWiki/scunpacked-data) at build time and shipped as static JSON files.
+SC-AssetManager is a browser-based Star Citizen commodity tracker. It is a fully client-side SPA — no backend. All user data (assets and trades) is persisted in `localStorage` by default. Item and location data is fetched from [StarCitizenWiki/scunpacked-data](https://github.com/StarCitizenWiki/scunpacked-data) at build time and shipped as static JSON files.
 
 **Optional Firebase sync** — users can bring their own Firebase project config to share a live Firestore database across a group. Data is stored in shared top-level collections (`/assets`, `/trades`). Authentication is Firebase Email/Password. Roles (`user`, `moderator`, `admin`) are stored in `/roles/{uid}` and enforced in the UI. See `FIREBASE.md` for the full setup guide and `firestore.rules` for the security rules.
 
@@ -103,7 +103,7 @@ Client for the [UEX Corp API v2](https://uexcorp.space/api/documentation/) with 
 
 ### Base path
 
-`svelte.config.js` checks `process.env.CF_PAGES` to select the adapter. The Cloudflare deploy workflow sets `CF_PAGES=1`; Docker and local dev leave it unset. There is no `BASE_PATH` — the app is served from the root of `https://s-c-a-m.me`.
+`svelte.config.js` checks `process.env.CF_PAGES` to select the adapter. The Cloudflare deploy workflow sets `CF_PAGES=1`; Docker and local dev leave it unset. There is no `BASE_PATH` — the app is served from the root of `https://sc-assetmanager.org` (also `https://s-c-a-m.me`).
 
 ## Commands
 
@@ -126,7 +126,7 @@ docker compose up
 
 | Target | Trigger | Config |
 |---|---|---|
-| Cloudflare Pages | push to `main` | `.github/workflows/pages.yml`, `CF_PAGES=1`, deploys to `s-c-a-m.me` |
+| Cloudflare Pages | push to `main` | `.github/workflows/pages.yml`, `CF_PAGES=1`, deploys to `sc-assetmanager.org` / `s-c-a-m.me` |
 | Docker (ghcr.io) | push to `main` or `v*` tag | `.github/workflows/docker.yml`, multi-stage Dockerfile |
 
 End users self-host via `docker-compose.yml` (port 8080) or use the Pages URL.

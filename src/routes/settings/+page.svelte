@@ -304,7 +304,7 @@
       trades.set(data.trades);
       importSuccess = `Imported ${data.assets.length} assets and ${data.trades.length} trades.`;
     } catch {
-      importError = 'Could not parse file — is it a valid SC Asset Manager export?';
+      importError = 'Could not parse file — is it a valid SC-AssetManager export?';
     }
     input.value = '';
   }

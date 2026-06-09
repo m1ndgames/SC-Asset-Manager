@@ -94,7 +94,7 @@ After this, the admin can manage other users' roles directly from the app's **Se
 
 ## 7. Connect the app
 
-In SC Asset Manager, open **Settings → Backend**, select **PocketBase** from the dropdown, enter your server URL (e.g. `http://your-host:8090`), and click **Connect**. Then sign in with your user account.
+In SC-AssetManager, open **Settings → Backend**, select **PocketBase** from the dropdown, enter your server URL (e.g. `http://your-host:8090`), and click **Connect**. Then sign in with your user account.
 
 ## CORS
 

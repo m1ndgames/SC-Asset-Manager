@@ -1,6 +1,6 @@
 # Firebase Sync — Setup & Administration Guide
 
-SC Asset Manager is fully functional as a standalone, offline-first app. Firebase sync is **opt-in** — nothing breaks if you never set it up. This guide covers everything needed to get a group sharing a live Firestore database.
+SC-AssetManager is fully functional as a standalone, offline-first app. Firebase sync is **opt-in** — nothing breaks if you never set it up. This guide covers everything needed to get a group sharing a live Firestore database.
 
 ---
 

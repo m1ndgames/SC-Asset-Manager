@@ -1,4 +1,4 @@
-# SC Asset Manager
+# SC-AssetManager
 
 A lightweight, browser-based tracker for your Star Citizen in-game commodities. No account, no server — your data stays in your browser.
 
@@ -24,7 +24,7 @@ If this tool saves you time, consider buying me a coffee: **https://ko-fi.com/m1
 
 The app is deployed automatically to Cloudflare Pages on every push to `main`:
 
-**https://s-c-a-m.me**
+**https://sc-assetmanager.org** (also available at https://s-c-a-m.me)
 
 ### Self-host with Docker
 
