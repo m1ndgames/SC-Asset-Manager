@@ -1,0 +1,62 @@
+name: Check scunpacked-data for updates
+
+on:
+  schedule:
+    - cron: "13 */6 * * *" # every 6 hours, off the hour to avoid GH's top-of-hour queue
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: check-upstream-data
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest scunpacked-data commit SHA
+        id: upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sha=$(gh api repos/StarCitizenWiki/scunpacked-data/commits/master --jq .sha)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Compare against last known SHA
+        id: compare
+        run: |
+          last_sha=""
+          if [ -f .github/upstream-sha.txt ]; then
+            last_sha=$(cat .github/upstream-sha.txt)
+          fi
+          echo "Last known: $last_sha"
+          echo "Upstream:   ${{ steps.upstream.outputs.sha }}"
+          if [ "$last_sha" != "${{ steps.upstream.outputs.sha }}" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Record new SHA
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          echo "${{ steps.upstream.outputs.sha }}" > .github/upstream-sha.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/upstream-sha.txt
+          git commit -m "chore: bump scunpacked-data reference to ${{ steps.upstream.outputs.sha }}"
+          git push
+
+      - name: Trigger rebuilds
+        if: steps.compare.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run pages.yml --ref main
+          gh workflow run docker.yml --ref main
