@@ -3,6 +3,7 @@ build/
 .svelte-kit/
 static/items.json
 static/locations.json
+static/commodities.json
 
 # IDE
 .idea/

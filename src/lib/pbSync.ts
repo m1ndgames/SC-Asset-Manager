@@ -1,6 +1,6 @@
 import { assets, trades, migrationPending, migrationBackend } from './stores';
 import { getPb, toPbId } from './pocketbase';
-import type { Asset, Trade } from './types';
+import type { Asset, CargoUnit, Trade } from './types';
 import { get } from 'svelte/store';
 
 type UnsubFn = () => Promise<void>;
@@ -22,8 +22,11 @@ function recordToAsset(r: Record<string, unknown>): Asset {
     buyPrice: r.buyPrice as number,
     location: r.location as string,
     createdAt: r.createdAt as string,
+    ...(r.unit ? { unit: r.unit as CargoUnit } : {}),
+    ...(r.quality != null ? { quality: r.quality as number } : {}),
     ...(r.loggedBy ? { loggedBy: r.loggedBy as string } : {}),
     ...(r.uexBuyId != null ? { uexBuyId: r.uexBuyId as number } : {}),
+    ...(r.source ? { source: r.source as string } : {}),
   };
 }
 
@@ -36,10 +39,13 @@ function recordToTrade(r: Record<string, unknown>): Trade {
     sellPrice: r.sellPrice as number,
     sellLocation: r.sellLocation as string,
     soldAt: r.soldAt as string,
+    ...(r.unit ? { unit: r.unit as CargoUnit } : {}),
+    ...(r.buyUnit ? { buyUnit: r.buyUnit as CargoUnit } : {}),
     ...(r.buyPrice != null ? { buyPrice: r.buyPrice as number } : {}),
     ...(r.buyLocation ? { buyLocation: r.buyLocation as string } : {}),
     ...(r.loggedBy ? { loggedBy: r.loggedBy as string } : {}),
     ...(r.uexSellId != null ? { uexSellId: r.uexSellId as number } : {}),
+    ...(r.source ? { source: r.source as string } : {}),
   };
 }
 
@@ -138,7 +144,13 @@ async function _attachListeners(): Promise<void> {
   // Store → PocketBase
   let prevAssets = new Map(get(assets).map((a) => [a.id, a]));
   unsubStoreAssets = assets.subscribe(async (current) => {
-    if (current === pbAssets) return; // PB-originated, skip
+    if (current === pbAssets) {
+      // PB-originated: no write, but the remote state we diff against has just
+      // moved, so adopt it — otherwise the delete diff below stays stale and can
+      // remove records written by another client or an external writer.
+      prevAssets = new Map(current.map((a) => [a.id, a]));
+      return;
+    }
     const pb = getPb();
     if (!pb) return;
 
@@ -158,7 +170,10 @@ async function _attachListeners(): Promise<void> {
 
   let prevTrades = new Map(get(trades).map((t) => [t.id, t]));
   unsubStoreTrades = trades.subscribe(async (current) => {
-    if (current === pbTrades) return; // PB-originated, skip
+    if (current === pbTrades) {
+      prevTrades = new Map(current.map((t) => [t.id, t]));
+      return;
+    }
     const pb = getPb();
     if (!pb) return;
 

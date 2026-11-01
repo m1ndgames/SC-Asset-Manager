@@ -12,6 +12,15 @@ let unsubStoreTrades: (() => void) | null = null;
 let fsAssets: Asset[] = [];
 let fsTrades: Trade[] = [];
 
+// Last known remote state, by id. Used to write only the documents that actually
+// changed instead of rewriting the whole collection on every store change, which
+// would clobber concurrent writes from another client or an external writer
+// (see INTEGRATIONS.md). Refreshed on BOTH paths — after a local change, and on
+// the echo-skip path when a remote snapshot arrives — so the delete diff below
+// always reflects what the server really holds.
+let prevAssets = new Map<string, Asset>();
+let prevTrades = new Map<string, Trade>();
+
 export async function startSync(uid: string): Promise<void> {
   const db = getDb();
   if (!db) return;
@@ -80,38 +89,52 @@ async function _attachListeners(uid: string): Promise<void> {
   });
 
   // Store → Firestore
-  let prevAssetIds = new Set(get(assets).map((a) => a.id));
+  prevAssets = new Map(get(assets).map((a) => [a.id, a]));
   unsubStoreAssets = assets.subscribe((current) => {
-    if (current === fsAssets) return; // Firestore-originated, skip
+    if (current === fsAssets) {
+      // Firestore-originated: no write, but the remote state we diff against
+      // has just moved, so adopt it.
+      prevAssets = new Map(current.map((a) => [a.id, a]));
+      return;
+    }
     const db = getDb();
     if (!db) return;
 
-    const currentIds = new Set(current.map((a) => a.id));
+    const currentMap = new Map(current.map((a) => [a.id, a]));
 
-    for (const asset of current) {
-      setDoc(doc(db, 'assets', asset.id), asset);
+    for (const [id, asset] of currentMap) {
+      const prev = prevAssets.get(id);
+      if (!prev || JSON.stringify(prev) !== JSON.stringify(asset)) {
+        setDoc(doc(db, 'assets', id), asset);
+      }
     }
-    for (const id of prevAssetIds) {
-      if (!currentIds.has(id)) deleteDoc(doc(db, 'assets', id));
+    for (const id of prevAssets.keys()) {
+      if (!currentMap.has(id)) deleteDoc(doc(db, 'assets', id));
     }
-    prevAssetIds = currentIds;
+    prevAssets = currentMap;
   });
 
-  let prevTradeIds = new Set(get(trades).map((t) => t.id));
+  prevTrades = new Map(get(trades).map((t) => [t.id, t]));
   unsubStoreTrades = trades.subscribe((current) => {
-    if (current === fsTrades) return; // Firestore-originated, skip
+    if (current === fsTrades) {
+      prevTrades = new Map(current.map((t) => [t.id, t]));
+      return;
+    }
     const db = getDb();
     if (!db) return;
 
-    const currentIds = new Set(current.map((t) => t.id));
+    const currentMap = new Map(current.map((t) => [t.id, t]));
 
-    for (const trade of current) {
-      setDoc(doc(db, 'trades', trade.id), trade);
+    for (const [id, trade] of currentMap) {
+      const prev = prevTrades.get(id);
+      if (!prev || JSON.stringify(prev) !== JSON.stringify(trade)) {
+        setDoc(doc(db, 'trades', id), trade);
+      }
     }
-    for (const id of prevTradeIds) {
-      if (!currentIds.has(id)) deleteDoc(doc(db, 'trades', id));
+    for (const id of prevTrades.keys()) {
+      if (!currentMap.has(id)) deleteDoc(doc(db, 'trades', id));
     }
-    prevTradeIds = currentIds;
+    prevTrades = currentMap;
   });
 }
 
@@ -126,4 +149,6 @@ export function stopSync(): void {
   unsubStoreTrades = null;
   fsAssets = [];
   fsTrades = [];
+  prevAssets = new Map();
+  prevTrades = new Map();
 }

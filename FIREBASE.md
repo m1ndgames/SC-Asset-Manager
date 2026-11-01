@@ -169,3 +169,12 @@ The free tier is more than sufficient for a small group:
 ```
 
 All members share the same `/assets` and `/trades` collections — there are no per-user sub-collections.
+
+---
+
+## Writing from another program
+
+An external program can write assets and trades straight into `/assets` and
+`/trades` — there is no API to go through, the database *is* the integration point.
+See [INTEGRATIONS.md](INTEGRATIONS.md) for the field contract, id rules and
+idempotency scheme.

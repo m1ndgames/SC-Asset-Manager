@@ -225,6 +225,13 @@
               <tr class="bg-bg hover:bg-surface-2 transition-colors duration-150">
                 <td class="px-4 py-3">
                   <span class="font-semibold text-text">{trade.item}</span>
+                  {#if trade.source}
+                    <span
+                      class="inline-flex items-center px-1 py-px text-muted/70 border border-muted/25 bg-muted/5 ml-1 leading-none"
+                      style="font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 0.05em;"
+                      title="Logged automatically from Game.log by trade.source"
+                    >LOG</span>
+                  {/if}
                   {#if trade.loggedBy}
                     <span class="block text-xs text-muted/60 font-normal mt-0.5">{trade.loggedBy}</span>
                   {/if}

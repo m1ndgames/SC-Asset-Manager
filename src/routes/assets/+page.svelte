@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { assets, trades, scItems, scLocations, firebaseUser, nickname, userRole, uexApiKey, uexSecretKey, triggerAddAsset } from '$lib/stores';
+  import { assets, trades, scItems, scLocations, firebaseUser, pbUser, nickname, userRole, uexApiKey, uexSecretKey, triggerAddAsset } from '$lib/stores';
   import { onDestroy } from 'svelte';
   import type { Asset, ScItem, CargoUnit } from '$lib/types';
   import { findEntity, fetchCommodityPrices, fetchItemPrices, topSellLocations, uexEntityUrl, findTerminal, submitTrade } from '$lib/uex';
@@ -189,7 +189,7 @@
       location: fLocation.trim(),
       ...(isCargo(fItemType) ? { unit: fUnit, quality: Number(fQuality) || 0 } : {}),
       createdAt: new Date().toISOString(),
-      ...($firebaseUser && $nickname ? { loggedBy: $nickname } : {})
+      ...(($firebaseUser || $pbUser) && $nickname ? { loggedBy: $nickname } : {})
     }]);
     showAddModal = false;
   }
@@ -270,7 +270,7 @@
       sellLocation: sSellLocation.trim(),
       soldAt: new Date().toISOString(),
       ...(sellTarget!.unit ? { unit: sSellUnit, buyUnit: sellTarget!.unit } : {}),
-      ...($firebaseUser && $nickname ? { loggedBy: $nickname } : {})
+      ...(($firebaseUser || $pbUser) && $nickname ? { loggedBy: $nickname } : {})
     }]);
 
     assets.update((list) => {
@@ -429,6 +429,13 @@
                   >{asset.item}</button>
                   {#if asset.quality}
                     <span class="inline-flex items-center px-1 py-px text-accent/60 border border-accent/20 bg-accent/5 ml-1 leading-none" style="font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 0.05em;">{asset.quality}</span>
+                  {/if}
+{#if asset.source}
+                    <span
+                      class="inline-flex items-center px-1 py-px text-muted/70 border border-muted/25 bg-muted/5 ml-1 leading-none"
+                      style="font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 0.05em;"
+                      title="Logged automatically from Game.log by asset.source"
+                    >LOG</span>
                   {/if}
                   {#if asset.loggedBy}
                     <span class="block text-xs text-muted/60 font-normal mt-0.5">{asset.loggedBy}</span>

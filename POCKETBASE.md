@@ -36,19 +36,24 @@ In the PocketBase admin UI, go to **Collections** and create the following four 
 | `app_id` | Text | yes |
 | `item` | Text | yes |
 | `amount` | Number | yes |
+| `unit` | Text | no |
 | `buyPrice` | Number | yes |
 | `location` | Text | yes |
+| `quality` | Number | no |
 | `createdAt` | Text | yes |
 | `loggedBy` | Text | no |
 | `uexBuyId` | Number | no |
+| `source` | Text | no |
 
 ### `trades`
 | Field | Type | Required |
 |---|---|---|
 | `app_id` | Text | yes |
-| `assetId` | Text | yes |
+| `assetId` | Text | no |
 | `item` | Text | yes |
 | `amountSold` | Number | yes |
+| `unit` | Text | no |
+| `buyUnit` | Text | no |
 | `sellPrice` | Number | yes |
 | `sellLocation` | Text | yes |
 | `soldAt` | Text | yes |
@@ -56,6 +61,7 @@ In the PocketBase admin UI, go to **Collections** and create the following four 
 | `buyLocation` | Text | no |
 | `loggedBy` | Text | no |
 | `uexSellId` | Number | no |
+| `source` | Text | no |
 
 ### `roles`
 | Field | Type | Required |
@@ -68,6 +74,16 @@ In the PocketBase admin UI, go to **Collections** and create the following four 
 |---|---|---|
 | `userId` | Text | yes |
 | `email` | Text | yes |
+
+Keep `unit` and `buyUnit` as plain **Text**, not a Select. The sync layer swallows
+write errors silently, so a Select that rejected an unexpected value would drop the
+record without telling anyone.
+
+> **Upgrading an existing instance.** `unit`, `quality`, `buyUnit` and `source` were
+> added later. If your collections predate them, add the columns by hand in the admin
+> UI — PocketBase silently discards fields it has no column for, so without them
+> cargo units and quality are lost on every write. Records created before the change
+> simply have them blank, which the app already tolerates.
 
 ## 4. Set collection API rules
 
@@ -99,3 +115,12 @@ In SC-AssetManager, open **Settings → Backend**, select **PocketBase** from th
 ## CORS
 
 If the app is hosted on a different domain than PocketBase, you may need to add the app's origin to PocketBase's allowed origins. In the admin UI go to **Settings → Application → CORS allowed origins** and add your app URL.
+
+---
+
+## Writing from another program
+
+An external program can write assets and trades straight into these collections —
+there is no API to go through, the database *is* the integration point. See
+[INTEGRATIONS.md](INTEGRATIONS.md) for the field contract, id rules and idempotency
+scheme.

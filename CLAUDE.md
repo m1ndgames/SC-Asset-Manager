@@ -6,7 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SC-AssetManager is a browser-based Star Citizen commodity tracker. It is a fully client-side SPA — no backend. All user data (assets and trades) is persisted in `localStorage` by default. Item and location data is fetched from [StarCitizenWiki/scunpacked-data](https://github.com/StarCitizenWiki/scunpacked-data) at build time and shipped as static JSON files.
 
-**Optional Firebase sync** — users can bring their own Firebase project config to share a live Firestore database across a group. Data is stored in shared top-level collections (`/assets`, `/trades`). Authentication is Firebase Email/Password. Roles (`user`, `moderator`, `admin`) are stored in `/roles/{uid}` and enforced in the UI. See `FIREBASE.md` for the full setup guide and `firestore.rules` for the security rules.
+**Optional sync backend** — users can share a live database across a group using either **Firebase Firestore** or a self-hosted **PocketBase**. Both store data in shared top-level collections (`assets`, `trades`) with Email/Password auth and roles (`user`, `moderator`, `admin`) in a `roles` collection, enforced in the UI. See `FIREBASE.md` + `firestore.rules`, and `POCKETBASE.md`.
+
+The two backends are **parallel implementations with no shared abstraction** (see the lib table below). Selection is **implicit**, derived from which localStorage key is present — `sc_firebase_config` for Firebase, `sc_pb_url` for PocketBase — and `+layout.svelte` initializes each independently. The `BackendProvider` type in `settings/+page.svelte` is component-local UI state, not a store, and is not consulted by the sync engines. Configuring both at once is not prevented and is not supported.
+
+**External writers** — because there is no server in front of the database, an external program that signs in as a group member can write assets and trades directly, and the app's realtime listeners pick them up with no app-side change. This is how the Game.log watcher integration works; there is no API endpoint. `INTEGRATIONS.md` is the contract: field/unit semantics, document-id rules, deterministic UUIDv5 ids for idempotency, buy/sell semantics, and the `source` field. Two invariants that contract depends on: `Trade.assetId` is **write-only** (stored and round-tripped, never dereferenced), so orphan trades are legal; and `Asset.buyPrice`/`Trade.sellPrice` are denominated in that record's own `unit`, not in SCU.
 
 ## Tech Stack
 
@@ -22,10 +26,15 @@ SC-AssetManager is a browser-based Star Citizen commodity tracker. It is a fully
 
 ```
 scripts/fetch_items.py
-  → static/items.json       (~7 476 items as {name,type}[], incl. ships)
-  → static/locations.json   (225 trading locations, string[])
+  → static/items.json       (~8 100 items as {name,type}[], incl. ships + commodities)
+  → static/locations.json   (~219 trading locations, string[])
+  → static/commodities.json (206 commodities as {resourceGUID: {name,key}})
+                            NOT fetched by the app — published for external
+                            writers, which only see a resourceGUID in Game.log.
+                            Its names are unioned into items.json so the two
+                            vocabularies cannot drift (see INTEGRATIONS.md).
         ↓
-+layout.svelte fetches both on mount via Promise.allSettled
++layout.svelte fetches items.json + locations.json on mount via Promise.allSettled
         ↓
 scItems / scLocations stores (plain writable, NOT localStorage-backed)
 ```
@@ -56,9 +65,13 @@ Commodity assets and trades carry an optional `unit?: CargoUnit` field (`'SCU' |
 | `uexLoggedIds` | `string[]` | localStorage |
 | `scItems` | `ScItem[]` | no (fetched on load) |
 | `scLocations` | `string[]` | no (fetched on load) |
+| `pbUrl` | `string` | localStorage |
 | `firebaseUser` | `User \| null` | no (set by auth listener) |
-| `userRole` | `Role \| null` | no (fetched on sign-in) |
-| `migrationPending` | `boolean` | no (set by firestoreSync) |
+| `pbUser` | `Record<string, any> \| null` | no (set by PB auth listener) |
+| `userRole` | `Role \| null` | no (fetched on sign-in; **shared by both backends** — last listener to fire wins) |
+| `migrationPending` | `boolean` | no (set by either sync engine) |
+| `migrationBackend` | `'firebase' \| 'pocketbase' \| null` | no (which engine raised the migration prompt) |
+| `triggerAddAsset` | `boolean` | no (nav bar → assets page "Add Asset" trigger) |
 
 ### Routes
 
@@ -67,17 +80,38 @@ Commodity assets and trades carry an optional `unit?: CargoUnit` field (`'SCU' |
 | `/` | redirects to `/assets` |
 | `/assets` | add / edit / delete assets; sell modal; Mine filter; type filter; click item name → UEX detail popup; UEX buy push button per commodity row |
 | `/trades` | trade history; edit / delete records; CSV export; Mine filter; UEX sell push button per commodity row |
-| `/settings` | Firebase config, sign-in/out, nickname, role management (admin only); UEX App Token + Personal Token |
+| `/settings` | backend selection (Firebase config / PocketBase URL), sign-in/out, nickname, role management (admin only); UEX App Token + Personal Token; JSON import/export + trade CSV export |
 | `/info` | static usage guide (formerly `/howto`) |
 
-### Firebase lib files (`src/lib/`)
+### Sync backend lib files (`src/lib/`)
+
+Two mirrored implementations, one per backend. There is no common interface.
 
 | File | Purpose |
 |---|---|
 | `firebase.ts` | init, `getDb()`, `getFirebaseAuth()`, config helpers |
 | `auth.ts` | `signIn`, `signOut`, `initAuthListener` — fetches role on sign-in |
-| `firestoreSync.ts` | `startSync` / `stopSync` — real-time listeners on `/assets` and `/trades`; migration flow |
+| `firestoreSync.ts` | `startSync` / `stopSync` — realtime listeners on `/assets` and `/trades`; migration flow |
 | `roleManager.ts` | `setUserRole`, `getAllRoles`, `getAllProfiles` |
+| `pocketbase.ts` | init, `getPb()`, `readStoredPbUrl()`, `toPbId()` |
+| `pbAuth.ts` | `pbSignIn`, `pbSignOut`, `initPbAuthListener` |
+| `pbSync.ts` | `startPbSync` / `stopPbSync`; `recordTo*` / `*ToRecord` mappers; migration flow |
+| `pbRoleManager.ts` | `getPbUserRole`, `setPbUserRole`, `getAllPbRoles`, `getAllPbProfiles`, `upsertPbProfile` |
+
+**PocketBase ids** — PB rejects hyphenated UUIDs as record ids, so a record carries
+both a mangled `id` from `toPbId()` and the original UUID in `app_id`; readers prefer
+`app_id`. Any new field must be added to the `recordTo*` mappers **and** to the
+collection schema in `POCKETBASE.md`, or PocketBase discards it on write and the
+mapper drops it on read.
+
+**Both engines write a changed-only diff** (previous-value `Map` + `JSON.stringify`
+compare) and refresh that map on the echo-skip path when a remote snapshot arrives.
+Do not revert either to rewriting the whole collection: that reopens a lost-update
+window against concurrent and external writers.
+
+**Role gating is keyed on `$firebaseUser`** in `assets/+page.svelte` and
+`trades/+page.svelte`, so PocketBase-only users currently get standalone-mode
+permissions. Known behaviour, not intent.
 
 ### UEX Corp lib (`src/lib/uex.ts`)
 
