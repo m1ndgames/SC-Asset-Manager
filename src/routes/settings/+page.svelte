@@ -10,7 +10,7 @@
   import { pbSignIn, pbSignOut, initPbAuthListener, destroyPbAuthListener } from '$lib/pbAuth';
   import { startPbSync, stopPbSync } from '$lib/pbSync';
   import { setPbUserRole, getAllPbRoles, getAllPbProfiles } from '$lib/pbRoleManager';
-  import type { FirebaseConfig, Role } from '$lib/types';
+  import type { Asset, FirebaseConfig, Role, Trade } from '$lib/types';
 
   type Section = 'general' | 'backend' | 'export';
   type BackendProvider = 'local' | 'firebase' | 'pocketbase';
@@ -283,6 +283,15 @@
     URL.revokeObjectURL(url);
   }
 
+  /** Incoming records overwrite same-id existing ones; everything else is kept. */
+  function mergeById<T extends { id: string }>(existing: T[], incoming: T[]): T[] {
+    const byId = new Map(existing.map((r) => [r.id, r]));
+    for (const r of incoming) {
+      if (r && typeof r.id === 'string') byId.set(r.id, r);
+    }
+    return [...byId.values()];
+  }
+
   async function handleImport(event: Event) {
     importError = '';
     importSuccess = '';
@@ -296,13 +305,28 @@
         input.value = '';
         return;
       }
-      if (!confirm(`This will replace your current data with ${data.assets.length} assets and ${data.trades.length} trades. Continue?`)) {
+      // In sync mode the stores are the shared database: a wholesale replace
+      // would delete every remote record absent from the file — including other
+      // members' records and anything written by an external log watcher
+      // (see INTEGRATIONS.md). Merge by id instead. Standalone mode keeps the
+      // original replace semantics, where the data really is only the user's own.
+      const prompt = syncActive
+        ? `This will merge ${data.assets.length} assets and ${data.trades.length} trades into the shared database. Records with the same id will be overwritten; nothing else is removed. Continue?`
+        : `This will replace your current data with ${data.assets.length} assets and ${data.trades.length} trades. Continue?`;
+      if (!confirm(prompt)) {
         input.value = '';
         return;
       }
-      assets.set(data.assets);
-      trades.set(data.trades);
-      importSuccess = `Imported ${data.assets.length} assets and ${data.trades.length} trades.`;
+      if (syncActive) {
+        assets.update((cur) => mergeById(cur, data.assets as Asset[]));
+        trades.update((cur) => mergeById(cur, data.trades as Trade[]));
+      } else {
+        assets.set(data.assets);
+        trades.set(data.trades);
+      }
+      importSuccess = syncActive
+        ? `Merged ${data.assets.length} assets and ${data.trades.length} trades.`
+        : `Imported ${data.assets.length} assets and ${data.trades.length} trades.`;
     } catch {
       importError = 'Could not parse file — is it a valid SC-AssetManager export?';
     }

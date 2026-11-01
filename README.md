@@ -13,6 +13,7 @@ A lightweight, browser-based tracker for your Star Citizen in-game commodities. 
 - **UEX Corp integration** *(opt-in)* — click any asset to see live sell prices, best locations by system, profit estimates, and commodity flags; push buy/sell orders directly to your UEX Corp trade log — all powered by [UEX Corp API](https://uexcorp.space/api/documentation/)
 - **Firebase sync** *(opt-in)* — share a live database across multiple users with role-based access control (`user`, `moderator`, `admin`); see [FIREBASE.md](FIREBASE.md) for setup
 - **PocketBase sync** *(opt-in)* — self-hosted alternative to Firebase; full real-time sync and role management on your own server; see [POCKETBASE.md](POCKETBASE.md) for setup
+- **Writable from other tools** — with a sync backend configured, an external program (e.g. a Game.log watcher) can write assets and trades directly into the shared database; see [INTEGRATIONS.md](INTEGRATIONS.md)
 
 ## Support
 
@@ -58,6 +59,10 @@ Two optional sync backends are available via **Settings → Backend**:
 
 - **Firebase** — bring your own Firebase project; free tier is more than enough for a group. See [FIREBASE.md](FIREBASE.md) for the full setup guide.
 - **PocketBase** — fully self-hosted, single binary or Docker container. See [POCKETBASE.md](POCKETBASE.md) for the full setup guide.
+
+Either backend doubles as an integration point: because there is no server in front
+of it, any program that signs in as a group member can write records that appear in
+everyone's browser in real time. See [INTEGRATIONS.md](INTEGRATIONS.md).
 
 Both backends provide real-time sync across all members. Each action is attributed to a nickname. Roles (`user`, `moderator`, `admin`) control what each member can edit or delete — admins can manage roles directly from the Settings page.
 
