@@ -14,7 +14,11 @@ The two backends are **parallel implementations with no shared abstraction** (se
 
 ## Tech Stack
 
-- **SvelteKit 2** with **Svelte 5** — use runes syntax throughout (`$state`, `$derived`, `$props`); stores are still `svelte/store` writables accessed via `$storeName` in templates
+- **SvelteKit 3** with **Svelte 5** — use runes syntax throughout (`$state`, `$derived`, `$props`); stores are still `svelte/store` writables accessed via `$storeName` in templates
+- **No `svelte.config.js`** — SvelteKit 3 takes its config as options to the `sveltekit()` plugin in `vite.config.ts` (adapter, prerender)
+- **`#lib` subpath imports, not `$lib`** — the alias is gone; import as `#lib/stores.js` (extension required), mapped by the `imports` field in `package.json`
+- **`$app/state`, not `$app/stores`** — `page` is a rune-based object, so write `page.url`, not `$page.url`
+- **Node 22.17+** required by SvelteKit 3 (workflows and the Dockerfile build stage run Node 26)
 - **Tailwind CSS v4** via `@tailwindcss/vite` — no `tailwind.config.js`; import in `src/app.css` with `@import "tailwindcss"`
 - **Dual adapter** — `@sveltejs/adapter-cloudflare` when `CF_PAGES=1` (Cloudflare Pages deploy), `@sveltejs/adapter-static` with `fallback: 'index.html'` otherwise (Docker / local dev)
 - **SSR disabled globally** — `src/routes/+layout.ts` exports `ssr = false`; never use server-side APIs
@@ -137,7 +141,7 @@ Client for the [UEX Corp API v2](https://uexcorp.space/api/documentation/) with 
 
 ### Base path
 
-`svelte.config.js` checks `process.env.CF_PAGES` to select the adapter. The Cloudflare deploy workflow sets `CF_PAGES=1`; Docker and local dev leave it unset. There is no `BASE_PATH` — the app is served from the root of `https://sc-assetmanager.org` (also `https://s-c-a-m.me`).
+`vite.config.ts` checks `process.env.CF_PAGES` to select the adapter. The Cloudflare deploy workflow sets `CF_PAGES=1`; Docker and local dev leave it unset. There is no `BASE_PATH` — the app is served from the root of `https://sc-assetmanager.org` (also `https://s-c-a-m.me`).
 
 ## Commands
 

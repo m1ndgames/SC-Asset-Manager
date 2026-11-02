@@ -1,15 +1,15 @@
 <script lang="ts">
   import '../app.css';
-  import { page } from '$app/stores';
-  import { trades, scItems, scLocations, firebaseUser, pbUser, userRole, migrationPending, migrationBackend, nickname, triggerAddAsset } from '$lib/stores';
+  import { page } from '$app/state';
+  import { trades, scItems, scLocations, firebaseUser, pbUser, userRole, migrationPending, migrationBackend, nickname, triggerAddAsset } from '#lib/stores.js';
   import { onMount, onDestroy } from 'svelte';
-  import { base } from '$app/paths';
-  import { readStoredConfig, initFirebase } from '$lib/firebase';
-  import { initAuthListener, destroyAuthListener } from '$lib/auth';
-  import { startSync, stopSync, migrateLocalToFirestore, skipMigration } from '$lib/firestoreSync';
-  import { readStoredPbUrl, initPocketBase } from '$lib/pocketbase';
-  import { initPbAuthListener, destroyPbAuthListener } from '$lib/pbAuth';
-  import { startPbSync, stopPbSync, migrateToPocketBase, skipPbMigration } from '$lib/pbSync';
+  import { asset, resolve } from '$app/paths';
+  import { readStoredConfig, initFirebase } from '#lib/firebase.js';
+  import { initAuthListener, destroyAuthListener } from '#lib/auth.js';
+  import { startSync, stopSync, migrateLocalToFirestore, skipMigration } from '#lib/firestoreSync.js';
+  import { readStoredPbUrl, initPocketBase } from '#lib/pocketbase.js';
+  import { initPbAuthListener, destroyPbAuthListener } from '#lib/pbAuth.js';
+  import { startPbSync, stopPbSync, migrateToPocketBase, skipPbMigration } from '#lib/pbSync.js';
 
   let { children } = $props();
 
@@ -22,8 +22,8 @@
 
   onMount(async () => {
     const [itemsRes, locationsRes] = await Promise.allSettled([
-      fetch(`${base}/items.json`),
-      fetch(`${base}/locations.json`)
+      fetch(asset('items.json')),
+      fetch(asset('locations.json'))
     ]);
 
     if (itemsRes.status === 'fulfilled' && itemsRes.value.ok) {
@@ -77,7 +77,7 @@
   });
 
   function isActive(path: string) {
-    return $page.url.pathname.startsWith(base + path);
+    return page.url.pathname.startsWith(path);
   }
 
 
@@ -105,7 +105,7 @@
 
       <!-- Nav links -->
       <a
-        href="{base}/assets"
+        href={resolve('assets')}
         class="text-xs font-semibold uppercase tracking-widest transition-all duration-200 {isActive('/assets')
           ? 'text-accent border-b border-accent pb-0.5'
           : 'text-muted hover:text-text'}"
@@ -113,7 +113,7 @@
         Assets
       </a>
       <a
-        href="{base}/trades"
+        href={resolve('trades')}
         class="text-xs font-semibold uppercase tracking-widest transition-all duration-200 {isActive('/trades')
           ? 'text-accent border-b border-accent pb-0.5'
           : 'text-muted hover:text-text'}"
@@ -121,7 +121,7 @@
         Trades
       </a>
       <a
-        href="{base}/info"
+        href={resolve('info')}
         class="text-xs font-semibold uppercase tracking-widest transition-all duration-200 {isActive('/howto')
           ? 'text-accent border-b border-accent pb-0.5'
           : 'text-muted hover:text-text'}"
@@ -129,7 +129,7 @@
         Info
       </a>
       <a
-        href="{base}/settings"
+        href={resolve('settings')}
         class="relative text-xs font-semibold uppercase tracking-widest transition-all duration-200 {isActive('/settings')
           ? 'text-accent border-b border-accent pb-0.5'
           : 'text-muted hover:text-text'}"
@@ -156,7 +156,7 @@
   {#if anyUserActive && !$nickname}
     <div class="bg-yellow-950/40 border-b border-yellow-800/60 px-6 py-2 flex items-center justify-center gap-3 text-xs">
       <span class="text-yellow-400 font-semibold uppercase tracking-wider">Sync active — set a nickname so your actions are attributed</span>
-      <a href="{base}/settings" class="px-3 py-1 border border-yellow-700 text-yellow-400 hover:bg-yellow-800/40 transition-all duration-200 font-semibold uppercase tracking-wider">
+      <a href={resolve('settings')} class="px-3 py-1 border border-yellow-700 text-yellow-400 hover:bg-yellow-800/40 transition-all duration-200 font-semibold uppercase tracking-wider">
         Set Nickname
       </a>
     </div>
