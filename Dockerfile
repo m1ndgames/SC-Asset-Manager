@@ -5,7 +5,7 @@ COPY scripts/fetch_items.py ./scripts/fetch_items.py
 RUN python scripts/fetch_items.py
 
 # Stage 2 — build the SvelteKit static app
-FROM node:20-slim AS builder
+FROM node:26-slim AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
