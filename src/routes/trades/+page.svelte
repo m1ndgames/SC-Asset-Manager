@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { trades, scLocations, scItems, firebaseUser, nickname, userRole, uexApiKey, uexSecretKey } from '$lib/stores';
-  import type { Trade, CargoUnit } from '$lib/types';
+  import { trades, scLocations, scItems, firebaseUser, nickname, userRole, uexApiKey, uexSecretKey } from '#lib/stores.js';
+  import type { Trade, CargoUnit } from '#lib/types.js';
 
   function toSCU(amount: number, unit?: CargoUnit): number {
     if (!unit || unit === 'SCU') return amount;
     if (unit === 'cSCU') return amount / 100;
     return amount / 1_000_000;
   }
-  import { findEntity, findTerminal, submitTrade } from '$lib/uex';
+  import { findEntity, findTerminal, submitTrade } from '#lib/uex.js';
 
   // ── Permissions ──────────────────────────────────────────────────────────────
   let canManage = $derived(!$firebaseUser || $userRole === 'moderator' || $userRole === 'admin');

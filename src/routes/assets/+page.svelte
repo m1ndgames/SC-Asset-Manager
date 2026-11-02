@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { assets, trades, scItems, scLocations, firebaseUser, pbUser, nickname, userRole, uexApiKey, uexSecretKey, triggerAddAsset } from '$lib/stores';
+  import { assets, trades, scItems, scLocations, firebaseUser, pbUser, nickname, userRole, uexApiKey, uexSecretKey, triggerAddAsset } from '#lib/stores.js';
   import { onDestroy } from 'svelte';
-  import type { Asset, ScItem, CargoUnit } from '$lib/types';
-  import { findEntity, fetchCommodityPrices, fetchItemPrices, topSellLocations, uexEntityUrl, findTerminal, submitTrade } from '$lib/uex';
-  import type { UexEntity, UexPrice } from '$lib/uex';
+  import type { Asset, ScItem, CargoUnit } from '#lib/types.js';
+  import { findEntity, fetchCommodityPrices, fetchItemPrices, topSellLocations, uexEntityUrl, findTerminal, submitTrade } from '#lib/uex.js';
+  import type { UexEntity, UexPrice } from '#lib/uex.js';
 
   // ── Permissions ─────────────────────────────────────────────────────────────
   let isMod    = $derived($userRole === 'moderator' || $userRole === 'admin');

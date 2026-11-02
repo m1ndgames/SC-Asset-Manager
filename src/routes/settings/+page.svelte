@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { assets, trades, firebaseUser, pbUser, userRole, nickname, uexApiKey, uexSecretKey } from '$lib/stores';
+  import { assets, trades, firebaseUser, pbUser, userRole, nickname, uexApiKey, uexSecretKey } from '#lib/stores.js';
   import { get } from 'svelte/store';
-  import { readStoredConfig, validateConfig, initFirebase } from '$lib/firebase';
-  import { signIn, signOut, initAuthListener, destroyAuthListener } from '$lib/auth';
-  import { startSync, stopSync } from '$lib/firestoreSync';
-  import { setUserRole, getAllRoles, getAllProfiles } from '$lib/roleManager';
-  import { readStoredPbUrl, initPocketBase, getPb } from '$lib/pocketbase';
-  import { pbSignIn, pbSignOut, initPbAuthListener, destroyPbAuthListener } from '$lib/pbAuth';
-  import { startPbSync, stopPbSync } from '$lib/pbSync';
-  import { setPbUserRole, getAllPbRoles, getAllPbProfiles } from '$lib/pbRoleManager';
-  import type { Asset, FirebaseConfig, Role, Trade } from '$lib/types';
+  import { readStoredConfig, validateConfig, initFirebase } from '#lib/firebase.js';
+  import { signIn, signOut, initAuthListener, destroyAuthListener } from '#lib/auth.js';
+  import { startSync, stopSync } from '#lib/firestoreSync.js';
+  import { setUserRole, getAllRoles, getAllProfiles } from '#lib/roleManager.js';
+  import { readStoredPbUrl, initPocketBase, getPb } from '#lib/pocketbase.js';
+  import { pbSignIn, pbSignOut, initPbAuthListener, destroyPbAuthListener } from '#lib/pbAuth.js';
+  import { startPbSync, stopPbSync } from '#lib/pbSync.js';
+  import { setPbUserRole, getAllPbRoles, getAllPbProfiles } from '#lib/pbRoleManager.js';
+  import type { Asset, FirebaseConfig, Role, Trade } from '#lib/types.js';
 
   type Section = 'general' | 'backend' | 'export';
   type BackendProvider = 'local' | 'firebase' | 'pocketbase';
