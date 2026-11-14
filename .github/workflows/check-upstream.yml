@@ -1,13 +1,19 @@
 name: Check scunpacked-data for updates
 
+# The last-seen upstream SHA lives in the Actions cache (one entry per SHA),
+# not in the repo: main is branch-protected with a required "build" check, so
+# a bot commit pushed straight to it is rejected. A cache entry not read for 7
+# days is evicted, but this job reads it every 6 hours, so it stays warm; if it
+# is ever lost, the only cost is one extra rebuild.
+
 on:
   schedule:
     - cron: "13 */6 * * *" # every 6 hours, off the hour to avoid GH's top-of-hour queue
   workflow_dispatch:
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
+  actions: write # gh workflow run + cache save
 
 concurrency:
   group: check-upstream-data
@@ -17,46 +23,37 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
       - name: Get latest scunpacked-data commit SHA
         id: upstream
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sha=$(gh api repos/StarCitizenWiki/scunpacked-data/commits/master --jq .sha)
+          echo "Upstream: $sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          mkdir -p .upstream && echo "$sha" > .upstream/sha.txt
 
-      - name: Compare against last known SHA
-        id: compare
-        run: |
-          last_sha=""
-          if [ -f .github/upstream-sha.txt ]; then
-            last_sha=$(cat .github/upstream-sha.txt)
-          fi
-          echo "Last known: $last_sha"
-          echo "Upstream:   ${{ steps.upstream.outputs.sha }}"
-          if [ "$last_sha" != "${{ steps.upstream.outputs.sha }}" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Record new SHA
-        if: steps.compare.outputs.changed == 'true'
-        run: |
-          echo "${{ steps.upstream.outputs.sha }}" > .github/upstream-sha.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/upstream-sha.txt
-          git commit -m "chore: bump scunpacked-data reference to ${{ steps.upstream.outputs.sha }}"
-          git push
+      - name: Look up SHA in cache
+        id: seen
+        uses: actions/cache/restore@v6
+        with:
+          path: .upstream/sha.txt
+          key: upstream-sha-${{ steps.upstream.outputs.sha }}
+          lookup-only: true
 
       - name: Trigger rebuilds
-        if: steps.compare.outputs.changed == 'true'
+        if: steps.seen.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh workflow run pages.yml --ref main
-          gh workflow run docker.yml --ref main
+          gh workflow run pages.yml --ref main --repo "$GITHUB_REPOSITORY"
+          gh workflow run docker.yml --ref main --repo "$GITHUB_REPOSITORY"
+
+      # Saved only after the rebuilds were dispatched, so a failed dispatch is
+      # retried on the next run instead of being marked as seen.
+      - name: Record SHA as seen
+        if: steps.seen.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: .upstream/sha.txt
+          key: upstream-sha-${{ steps.upstream.outputs.sha }}
