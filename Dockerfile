@@ -1,5 +1,5 @@
 # Stage 1 — fetch SC item/location data from scunpacked-data
-FROM python:3.12-slim AS data-fetcher
+FROM python:3.15-slim AS data-fetcher
 WORKDIR /app
 COPY scripts/fetch_items.py ./scripts/fetch_items.py
 RUN python scripts/fetch_items.py
